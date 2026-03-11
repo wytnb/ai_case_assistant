@@ -30,17 +30,17 @@ class HomePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 32),
                 FilledButton(
-                  onPressed: () => context.go('/records'),
+                  onPressed: () => context.push('/records'),
                   child: const Text('进入健康记录列表'),
                 ),
                 const SizedBox(height: 12),
                 FilledButton.tonal(
-                  onPressed: () => context.go('/records/new'),
+                  onPressed: () => context.push('/records/new'),
                   child: const Text('进入新增记录'),
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton(
-                  onPressed: () => context.go('/reports'),
+                  onPressed: () => context.push('/reports'),
                   child: const Text('进入报告页'),
                 ),
               ],
