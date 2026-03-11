@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:ai_case_assistant/features/health_record/presentation/providers/health_record_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 class CreateHealthRecordPage extends ConsumerStatefulWidget {
   const CreateHealthRecordPage({super.key});
@@ -15,11 +18,34 @@ class _CreateHealthRecordPageState
     extends ConsumerState<CreateHealthRecordPage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _rawTextController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
+  List<XFile> _selectedImages = <XFile>[];
 
   @override
   void dispose() {
     _rawTextController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImages() async {
+    try {
+      final List<XFile> pickedImages = await _imagePicker.pickMultiImage();
+      if (!mounted || pickedImages.isEmpty) {
+        return;
+      }
+
+      setState(() {
+        _selectedImages = pickedImages;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('选择图片失败，请稍后重试。')));
+    }
   }
 
   Future<void> _submit() async {
@@ -31,7 +57,12 @@ class _CreateHealthRecordPageState
     try {
       await ref
           .read(createHealthRecordControllerProvider.notifier)
-          .createHealthRecord(rawText: _rawTextController.text);
+          .createHealthRecord(
+            rawText: _rawTextController.text,
+            attachmentSourcePaths: _selectedImages
+                .map((XFile image) => image.path)
+                .toList(),
+          );
 
       if (!mounted) {
         return;
@@ -45,7 +76,7 @@ class _CreateHealthRecordPageState
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('整理失败，请稍后重试。')));
+      ).showSnackBar(const SnackBar(content: Text('保存失败，请稍后重试。')));
     }
   }
 
@@ -64,7 +95,7 @@ class _CreateHealthRecordPageState
           padding: const EdgeInsets.all(16),
           children: <Widget>[
             Text(
-              '只需输入本次原始描述，系统会先自动整理出症状摘要和备注，再完成保存。',
+              '只需输入本次原始描述，可选附上图片。系统会先整理摘要和备注，再完成本地保存。',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),
@@ -75,7 +106,7 @@ class _CreateHealthRecordPageState
               maxLines: 10,
               decoration: const InputDecoration(
                 labelText: '原始描述',
-                hintText: '例如：昨晚开始喉咙痛，今天早上有点发烧，还伴随轻微咳嗽。',
+                hintText: '例如：昨晚开始喉咙痛，今天早上有点发烧，还拍了化验单照片。',
                 border: OutlineInputBorder(),
               ),
               validator: (String? value) {
@@ -86,6 +117,34 @@ class _CreateHealthRecordPageState
                 return null;
               },
             ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: isSubmitting ? null : _pickImages,
+              icon: const Icon(Icons.photo_library_outlined),
+              label: Text(_selectedImages.isEmpty ? '选择图片' : '重新选择图片'),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _selectedImages.isEmpty
+                  ? '当前未选择图片'
+                  : '已选择 ${_selectedImages.length} 张图片',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            if (_selectedImages.isNotEmpty) ...<Widget>[
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 96,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _selectedImages.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (BuildContext context, int index) {
+                    final XFile image = _selectedImages[index];
+                    return _SelectedImagePreview(filePath: image.path);
+                  },
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             FilledButton(
               onPressed: isSubmitting ? null : _submit,
@@ -93,9 +152,33 @@ class _CreateHealthRecordPageState
             ),
             if (createState.hasError) ...<Widget>[
               const SizedBox(height: 12),
-              const Text('整理失败，请稍后重试。', style: TextStyle(color: Colors.red)),
+              const Text('保存失败，请稍后重试。', style: TextStyle(color: Colors.red)),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SelectedImagePreview extends StatelessWidget {
+  const _SelectedImagePreview({required this.filePath});
+
+  final String filePath;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 96,
+        height: 96,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        child: Image.file(
+          File(filePath),
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) =>
+              const Center(child: Icon(Icons.broken_image_outlined)),
         ),
       ),
     );

@@ -4,15 +4,24 @@ import 'package:ai_case_assistant/core/database/app_database.dart';
 import 'package:ai_case_assistant/core/database/app_database_provider.dart';
 import 'package:ai_case_assistant/features/ai/domain/services/ai_extract_service.dart';
 import 'package:ai_case_assistant/features/ai/presentation/providers/ai_extract_service_provider.dart';
+import 'package:ai_case_assistant/features/health_record/data/local/health_record_attachment_storage.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+
+final Provider<HealthRecordAttachmentStorage>
+healthRecordAttachmentStorageProvider = Provider<HealthRecordAttachmentStorage>(
+  (Ref ref) {
+    return const HealthRecordAttachmentStorage();
+  },
+);
 
 final Provider<HealthRecordService> healthRecordServiceProvider =
     Provider<HealthRecordService>((Ref ref) {
       return HealthRecordService(
         database: ref.watch(appDatabaseProvider),
         aiExtractService: ref.watch(aiExtractServiceProvider),
+        attachmentStorage: ref.watch(healthRecordAttachmentStorageProvider),
       );
     });
 
@@ -45,15 +54,21 @@ class HealthRecordService {
   HealthRecordService({
     required AppDatabase database,
     required AiExtractService aiExtractService,
+    required HealthRecordAttachmentStorage attachmentStorage,
   }) : _database = database,
-       _aiExtractService = aiExtractService;
+       _aiExtractService = aiExtractService,
+       _attachmentStorage = attachmentStorage;
 
   final AppDatabase _database;
   final AiExtractService _aiExtractService;
+  final HealthRecordAttachmentStorage _attachmentStorage;
   static const Uuid _uuid = Uuid();
 
-  Future<String> createHealthRecord({required String rawText}) async {
-    final String id = _uuid.v4();
+  Future<String> createHealthRecord({
+    required String rawText,
+    List<String> attachmentSourcePaths = const <String>[],
+  }) async {
+    final String healthEventId = _uuid.v4();
     final DateTime now = DateTime.now();
     final String normalizedRawText = rawText.trim();
     final AiExtractResult extractResult = await _aiExtractService
@@ -63,24 +78,59 @@ class HealthRecordService {
     );
     final String? normalizedNotes = _normalizeOptionalText(extractResult.notes);
 
-    await _database.insertHealthEvent(
-      HealthEventsCompanion(
-        id: Value<String>(id),
-        eventTime: Value<DateTime>(now),
-        sourceType: const Value<String>('text'),
-        rawText: Value<String>(normalizedRawText),
-        symptomSummary: normalizedSymptomSummary == null
-            ? const Value<String?>.absent()
-            : Value<String?>(normalizedSymptomSummary),
-        notes: normalizedNotes == null
-            ? const Value<String?>.absent()
-            : Value<String?>(normalizedNotes),
-        createdAt: Value<DateTime>(now),
-        updatedAt: Value<DateTime>(now),
-      ),
-    );
+    final List<String> copiedFilePaths = <String>[];
+    final List<AttachmentsCompanion> attachmentCompanions =
+        <AttachmentsCompanion>[];
 
-    return id;
+    try {
+      for (final String sourcePath in attachmentSourcePaths) {
+        final String attachmentId = _uuid.v4();
+        final String storedFilePath = await _attachmentStorage
+            .saveImageAttachment(
+              healthEventId: healthEventId,
+              attachmentId: attachmentId,
+              sourceFilePath: sourcePath,
+            );
+        copiedFilePaths.add(storedFilePath);
+        attachmentCompanions.add(
+          AttachmentsCompanion(
+            id: Value<String>(attachmentId),
+            healthEventId: Value<String>(healthEventId),
+            filePath: Value<String>(storedFilePath),
+            fileType: const Value<String>('image'),
+            createdAt: Value<DateTime>(now),
+          ),
+        );
+      }
+
+      await _database.transaction(() async {
+        await _database.insertHealthEvent(
+          HealthEventsCompanion(
+            id: Value<String>(healthEventId),
+            eventTime: Value<DateTime>(now),
+            sourceType: const Value<String>('text'),
+            rawText: Value<String>(normalizedRawText),
+            symptomSummary: normalizedSymptomSummary == null
+                ? const Value<String?>.absent()
+                : Value<String?>(normalizedSymptomSummary),
+            notes: normalizedNotes == null
+                ? const Value<String?>.absent()
+                : Value<String?>(normalizedNotes),
+            createdAt: Value<DateTime>(now),
+            updatedAt: Value<DateTime>(now),
+          ),
+        );
+
+        for (final AttachmentsCompanion attachment in attachmentCompanions) {
+          await _database.insertAttachment(attachment);
+        }
+      });
+    } catch (_) {
+      await _attachmentStorage.deleteStoredAttachments(copiedFilePaths);
+      rethrow;
+    }
+
+    return healthEventId;
   }
 
   Future<List<HealthEvent>> getAllHealthRecords() {
@@ -113,13 +163,19 @@ class CreateHealthRecordController extends AutoDisposeAsyncNotifier<void> {
   @override
   FutureOr<void> build() {}
 
-  Future<String> createHealthRecord({required String rawText}) async {
+  Future<String> createHealthRecord({
+    required String rawText,
+    List<String> attachmentSourcePaths = const <String>[],
+  }) async {
     state = const AsyncLoading<void>();
 
     try {
       final String id = await ref
           .read(healthRecordServiceProvider)
-          .createHealthRecord(rawText: rawText);
+          .createHealthRecord(
+            rawText: rawText,
+            attachmentSourcePaths: attachmentSourcePaths,
+          );
 
       state = const AsyncData<void>(null);
       ref.invalidate(healthRecordListProvider);

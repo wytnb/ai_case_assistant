@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:ai_case_assistant/core/database/app_database.dart';
 import 'package:ai_case_assistant/features/health_record/presentation/providers/health_record_providers.dart';
 import 'package:flutter/material.dart';
@@ -66,12 +68,8 @@ class HealthRecordDetailPage extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: attachments
                           .map(
-                            (Attachment attachment) => ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: const Icon(Icons.attachment_outlined),
-                              title: Text(attachment.filePath),
-                              subtitle: Text(attachment.fileType),
-                            ),
+                            (Attachment attachment) =>
+                                _AttachmentPreview(attachment: attachment),
                           )
                           .toList(),
                     );
@@ -88,6 +86,54 @@ class HealthRecordDetailPage extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, _) => const _InfoState(title: '记录加载失败', message: '请稍后重试。'),
+      ),
+    );
+  }
+}
+
+class _AttachmentPreview extends StatelessWidget {
+  const _AttachmentPreview({required this.attachment});
+
+  final Attachment attachment;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isImageAttachment = attachment.fileType == 'image';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            if (isImageAttachment)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 180,
+                  child: Image.file(
+                    File(attachment.filePath),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Container(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
+                      alignment: Alignment.center,
+                      child: const Text('图片加载失败'),
+                    ),
+                  ),
+                ),
+              )
+            else
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.attachment_outlined),
+                title: Text('当前附件暂不支持预览'),
+              ),
+          ],
+        ),
       ),
     );
   }
