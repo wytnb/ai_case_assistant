@@ -5,225 +5,315 @@
 本文件定义核心数据结构、字段含义、字段约束、状态枚举、AI JSON 结构以及 DTO / Entity / ViewModel / Domain Model 的职责边界。  
 本文件是模型、接口、落库和解析实现的最终口径。
 
-## 通用字段规则
+## 契约使用原则
 
-### ID 规则
+1. **结构化事实字段**与**展示缓存字段**必须分开定义，不混用。
+2. 原始输入、结构化提取结果、展示摘要、聚合报告属于不同层级对象，不可互相替代。
+3. AI 返回值只有在通过标准化与校验后，才可作为结构化结果落库。
+4. 列表页为了性能允许保存少量冗余展示字段，但冗余字段不是事实主来源。
+5. 当前 MVP 优先保证：
+   - 可落库
+   - 可回显
+   - 可追溯
+   - 可失败兜底
+6. 当前不为了少量查询需求提前引入复杂拆表，但也不把本应结构化的数据塞进字符串摘要字段。
+
+---
+
+## 一、通用字段规则
+
+### 1. ID 规则
 
 1. 业务主键统一使用字符串 UUID。
 2. UUID 由客户端生成。
 3. 数据库内部若存在技术性自增主键，不对外暴露，也不作为跨层传递的主标识。
-4. 任何页面路由参数、跨模块传递、接口关联优先使用业务 UUID。
+4. 页面路由参数、跨模块传递、对象关联统一使用业务 UUID。
 
-### 时间字段规则
+### 2. 时间字段规则
 
 1. Dart / 本地数据库中使用 `DateTime` 表达时间。
 2. JSON / HTTP 契约中统一使用 ISO 8601 字符串，并包含时区偏移。
-3. `eventTime` 表示健康事件发生时间；`createdAt` 表示记录创建时间；`updatedAt` 表示最后更新时间。
-4. 需要时间范围时，统一使用：
+3. 各时间字段语义必须固定：
+   - `eventTime`：健康事件发生时间
+   - `createdAt`：记录创建时间
+   - `updatedAt`：记录最后更新时间
+   - `generatedAt`：报告或提取结果生成完成时间
+4. 时间范围统一使用：
    - `rangeStart`
    - `rangeEnd`
+5. 若 AI 推断了时间，必须在结构化结果中记录时间来源，不能与用户明确输入的时间混淆。
 
-### 可空规则
+### 3. 可空规则
 
 1. 能从业务上确定为必有的信息，不设为可空。
-2. 会受到 AI 解析结果稳定性影响的字段，可空。
-3. 可空字段必须有明确“缺失时如何处理”的页面或解析兜底方案。
+2. 会受 AI 解析稳定性影响的字段，可以可空。
+3. 可空字段必须有明确降级行为。
+4. 不允许使用“空字符串”代替 `null` 作为缺失值。
 
-### 命名规则
+### 4. 命名规则
 
 1. 字段名统一使用 `camelCase`。
-2. 不使用缩写不清的字段名，例如 `desc`、`info1`、`tmpValue`。
+2. 不使用含义模糊的字段名，例如 `desc`、`info1`、`tmpValue`。
 3. 枚举值统一使用小写 `snake_case` 或小写单词，不混用大小写风格。
+4. 同一语义在不同对象中使用同名字段，例如 `createdAt`、`updatedAt`、`status`。
 
-## 核心实体清单
+### 5. 事实字段与缓存字段规则
+
+1. **事实字段**：用于表达业务真实状态，必须稳定、可追溯、可被其他流程依赖。
+2. **缓存字段**：用于提升列表展示或快速回显，可以冗余，但必须从事实字段推导而来。
+3. 缓存字段不得承担结构化主来源职责。
+4. 一旦事实字段与缓存字段冲突，以事实字段为准。
+
+---
+
+## 二、核心实体清单
 
 1. `HealthEvent`
 2. `Attachment`
 3. `FollowupSession`
 4. `ExtractResult`
 5. `Report`
-6. `FollowupQuestion`
-7. `FollowupAnswer`
-8. `SymptomItem`
 
-## 实体定义
+---
 
-## HealthEvent
+## 三、核心实体定义
+
+## 1. HealthEvent
 
 健康事件是核心主对象，表示一次有时间语义的健康相关记录。
 
-| 字段名 | 类型 | 必填 | 含义 | 约束 |
-| --- | --- | --- | --- | --- |
-| id | String | 是 | 健康事件业务主键 | UUID |
-| inputType | String | 是 | 输入来源类型 | 见 `InputType` |
-| userInputText | String? | 否 | 用户原始文本输入；语音场景存转写文本 | 文本为空时，必须至少有附件或语音转写结果 |
-| eventTime | DateTime | 是 | 健康事件发生时间 | 可由用户输入、当前时间或 AI 提取后回填 |
-| status | String | 是 | 当前处理状态 | 见 `HealthEventStatus` |
-| symptomSummary | String? | 否 | 简短症状摘要 | 用于列表展示，不代替完整提取结果 |
-| createdAt | DateTime | 是 | 创建时间 | 不可为空 |
-| updatedAt | DateTime | 是 | 更新时间 | 每次修改后更新 |
+### 字段定义
 
-### HealthEvent 约束
+| 字段名 | 类型 | 必填 | 层级 | 含义 | 约束 |
+| --- | --- | --- | --- | --- | --- |
+| id | String | 是 | 事实字段 | 健康事件业务主键 | UUID |
+| inputType | String | 是 | 事实字段 | 输入来源类型 | 见 `InputType` |
+| userInputText | String? | 否 | 原始输入字段 | 用户原始文本输入；语音场景存转写文本 | 文本为空时，必须至少有附件 |
+| eventTime | DateTime | 是 | 事实字段 | 健康事件发生时间 | 可来自用户输入、当前时间或 AI 推断后的回填 |
+| eventTimeSource | String | 是 | 事实字段 | `eventTime` 来源 | 见 `EventTimeSource` |
+| status | String | 是 | 事实字段 | 当前处理状态 | 见 `HealthEventStatus` |
+| symptomSummary | String? | 否 | 缓存字段 | 用于列表展示的简短摘要文本 | 纯文本，不是 JSON；建议 120 字以内 |
+| primarySymptomsCacheJson | String? | 否 | 缓存字段 | 用于列表快速展示的主症状标签数组 | 可空；若存在，必须是字符串数组 JSON |
+| createdAt | DateTime | 是 | 事实字段 | 创建时间 | 不可为空 |
+| updatedAt | DateTime | 是 | 事实字段 | 更新时间 | 每次修改后更新 |
+
+### 约束
 
 1. `HealthEvent` 必须先保留原始输入，再追加 AI 结果。
 2. `status` 表示本条记录的整体处理状态，不等于提取结果状态。
-3. `symptomSummary` 用于展示层快速摘要，不作为唯一事实来源。
+3. `symptomSummary` 是**展示缓存字段**，不是结构化事实字段。
+4. `symptomSummary` 必须是纯文本，不允许存任意 JSON。
+5. 若需要结构化症状事实，以 `ExtractResult.normalizedResultJson.symptoms` 为准。
+6. `primarySymptomsCacheJson` 仅用于列表快速展示，不作为结构化主来源。
+7. 当前阶段如果只需要一个列表摘要字段，可以只保留 `symptomSummary`，不强制启用 `primarySymptomsCacheJson`。
+8. 若未来需要按症状精确查询，不应继续扩展 `symptomSummary`，而应新增独立症状表或独立索引字段。
 
-## Attachment
+### 关于 `symptomSummary` 的最终口径
+
+**结论：不改成固定 JSON。**
+
+原因：
+
+1. 它本质上是列表展示摘要，而不是结构化事实容器。
+2. 若改成 JSON，会与 `normalizedResultJson` 重复，增加双写漂移风险。
+3. 页面若只想展示摘要，文本更直接；页面若要结构化展示，应直接读 `normalizedResultJson`。
+4. 真正需要结构化查询时，应建独立结构，而不是滥用摘要字段。
+
+---
+
+## 2. Attachment
 
 附件表示挂靠在健康事件下的原始文件。
+
+### 字段定义
 
 | 字段名 | 类型 | 必填 | 含义 | 约束 |
 | --- | --- | --- | --- | --- |
 | id | String | 是 | 附件业务主键 | UUID |
 | healthEventId | String | 是 | 所属健康事件 ID | 必须指向已有 `HealthEvent` |
-| filePath | String | 是 | 本地文件绝对路径或应用私有目录相对路径 | 必须可由当前应用访问 |
-| fileType | String | 是 | 附件类型 | MVP 当前仅支持 `image` |
+| filePath | String | 是 | 附件路径 | 推荐保存应用私有目录相对路径，不保存平台相关临时 URI |
+| fileType | String | 是 | 附件类型 | 当前 MVP 仅支持 `image` |
 | sourceType | String | 是 | 附件来源 | 见 `AttachmentSourceType` |
+| mimeType | String? | 否 | MIME 类型 | 可空 |
+| fileSizeBytes | int? | 否 | 文件大小 | 可空，若存在必须大于等于 0 |
 | createdAt | DateTime | 是 | 创建时间 | 不可为空 |
 
-### Attachment 约束
+### 约束
 
 1. 当前 MVP 只允许图片附件。
-2. 删除附件时，业务层必须同时考虑文件删除与元数据删除的一致性。
-3. 文件不存在时，不应导致详情页崩溃；应展示降级提示。
+2. 推荐保存应用可控目录路径，不保存一次性临时 URI。
+3. 删除附件时，业务层必须同时考虑文件删除与元数据删除的一致性。
+4. 文件不存在时，不应导致详情页崩溃；应展示降级提示。
 
-## FollowupSession
+---
+
+## 3. FollowupSession
 
 追问会话表示围绕某次健康事件进行的一轮追问记录。
+
+### 字段定义
 
 | 字段名 | 类型 | 必填 | 含义 | 约束 |
 | --- | --- | --- | --- | --- |
 | id | String | 是 | 追问会话业务主键 | UUID |
 | healthEventId | String | 是 | 所属健康事件 ID | 必须指向已有 `HealthEvent` |
-| questionsJson | String | 是 | 追问问题 JSON 字符串 | 结构见 `FollowupQuestion` |
-| answersJson | String? | 否 | 用户回答 JSON 字符串 | 结构见 `FollowupAnswer` |
+| schemaVersion | int | 是 | 追问 JSON 结构版本 | 当前固定为 `1` |
+| questionsJson | String | 是 | 追问问题 JSON | 结构见 `FollowupQuestion[]` |
+| answersJson | String? | 否 | 用户回答 JSON | 结构见 `FollowupAnswer[]` |
 | status | String | 是 | 追问会话状态 | 见 `FollowupSessionStatus` |
 | createdAt | DateTime | 是 | 创建时间 | 不可为空 |
 | updatedAt | DateTime | 是 | 更新时间 | 每次保存回答后更新 |
 
-### FollowupSession 约束
+### 约束
 
-1. 问题和回答的顺序必须可还原。
-2. 即使用户跳过回答，也需要有明确状态。
-3. `questionsJson` 与 `answersJson` 仅作为存储载体；页面层不直接处理裸 JSON 字符串。
+1. 问题与回答顺序必须可还原。
+2. `questionsJson` 与 `answersJson` 必须是合法 JSON 数组。
+3. 页面层不直接处理裸 JSON 字符串，应先解析为结构对象。
+4. 当前阶段同一健康事件可存在多轮追问，但页面默认只面向“当前有效会话”展示。
 
-## ExtractResult
+---
+
+## 4. ExtractResult
 
 提取结果表示 AI 对单个健康事件做出的结构化整理结果。
 
-| 字段名 | 类型 | 必填 | 含义 | 约束 |
-| --- | --- | --- | --- | --- |
-| id | String | 是 | 提取结果业务主键 | UUID |
-| healthEventId | String | 是 | 所属健康事件 ID | 必须指向已有 `HealthEvent` |
-| modelName | String? | 否 | 使用的模型名或代理标识 | 可选 |
-| rawResultJson | String? | 否 | AI 原始返回 JSON 字符串 | 用于追溯与排障 |
-| normalizedResultJson | String? | 否 | 标准化后 JSON 字符串 | 结构见下文 |
-| status | String | 是 | 提取结果状态 | 见 `ExtractResultStatus` |
-| failureReason | String? | 否 | 失败原因摘要 | 失败时可写入 |
-| createdAt | DateTime | 是 | 创建时间 | 不可为空 |
+### 字段定义
 
-### ExtractResult 约束
+| 字段名 | 类型 | 必填 | 层级 | 含义 | 约束 |
+| --- | --- | --- | --- | --- | --- |
+| id | String | 是 | 事实字段 | 提取结果业务主键 | UUID |
+| healthEventId | String | 是 | 事实字段 | 所属健康事件 ID | 必须指向已有 `HealthEvent` |
+| modelName | String? | 否 | 元数据字段 | 使用的模型名或代理标识 | 可空 |
+| schemaVersion | int | 是 | 事实字段 | 结构化结果版本 | 当前固定为 `1` |
+| rawResultJson | String? | 否 | 追溯字段 | AI 原始返回 JSON 字符串 | 用于追溯与排障 |
+| normalizedResultJson | String? | 否 | 事实字段 | 标准化后 JSON 字符串 | 结构见下文 |
+| status | String | 是 | 事实字段 | 提取结果状态 | 见 `ExtractResultStatus` |
+| failureReason | String? | 否 | 事实字段 | 失败原因摘要 | 失败时可写入 |
+| createdAt | DateTime | 是 | 事实字段 | 创建时间 | 不可为空 |
+
+### 约束
 
 1. `rawResultJson` 不可直接作为页面展示主来源。
 2. `normalizedResultJson` 才是落库后的稳定口径。
 3. 若提取失败，允许仅保存 `failureReason` 和 `rawResultJson`。
+4. 当前阶段一个健康事件可有多条提取结果记录，但页面默认读取最新成功结果；若没有成功结果，则读取最近一次失败状态用于提示。
 
-## Report
+---
+
+## 5. Report
 
 报告表示某一时间范围内多个健康事件的聚合输出。
 
-| 字段名 | 类型 | 必填 | 含义 | 约束 |
-| --- | --- | --- | --- | --- |
-| id | String | 是 | 报告业务主键 | UUID |
-| reportType | String | 是 | 报告类型 | 见 `ReportType` |
-| rangeStart | DateTime | 是 | 报告时间范围起点 | 不可为空 |
-| rangeEnd | DateTime | 是 | 报告时间范围终点 | 不可为空，且必须晚于 `rangeStart` |
-| sourceEventCount | int | 是 | 参与汇总的事件数量 | 最小为 0 |
-| reportContent | String? | 否 | 报告正文，优先存 Markdown | 可为空 |
-| reportSummary | String? | 否 | 报告摘要 | 可为空 |
-| reportStatus | String | 是 | 报告状态 | 见 `ReportStatus` |
-| generatedAt | DateTime? | 否 | 生成完成时间 | 成功时应有值 |
-| createdAt | DateTime | 是 | 记录创建时间 | 不可为空 |
+### 字段定义
 
-### Report 约束
+| 字段名 | 类型 | 必填 | 层级 | 含义 | 约束 |
+| --- | --- | --- | --- | --- | --- |
+| id | String | 是 | 事实字段 | 报告业务主键 | UUID |
+| reportType | String | 是 | 事实字段 | 报告类型 | 见 `ReportType` |
+| rangeStart | DateTime | 是 | 事实字段 | 报告时间范围起点 | 不可为空 |
+| rangeEnd | DateTime | 是 | 事实字段 | 报告时间范围终点 | 不可为空，且必须晚于 `rangeStart` |
+| sourceEventCount | int | 是 | 事实字段 | 参与汇总的事件数量 | 最小为 0 |
+| contentFormat | String | 是 | 事实字段 | 报告正文格式 | 当前固定为 `markdown` |
+| reportContent | String? | 否 | 事实字段 | 报告正文 | 当前推荐存 Markdown |
+| reportSummary | String? | 否 | 缓存字段 | 列表摘要 | 建议 160 字以内 |
+| reportStatus | String | 是 | 事实字段 | 报告状态 | 见 `ReportStatus` |
+| generatedAt | DateTime? | 否 | 事实字段 | 生成完成时间 | 成功时应有值 |
+| createdAt | DateTime | 是 | 事实字段 | 记录创建时间 | 不可为空 |
 
-1. 报告的主展示内容优先使用 `reportContent`。
+### 约束
+
+1. 报告详情主展示内容优先使用 `reportContent`。
 2. 报告列表可使用 `reportSummary`。
-3. 报告失败时，页面必须可区分“尚未生成”和“生成失败”。
+3. `contentFormat` 当前固定为 `markdown`，不要同时支持多种自由文本格式。
+4. 报告失败时，页面必须可区分“尚未生成”和“生成失败”。
 
-## 值对象定义
+---
 
-## FollowupQuestion
+## 四、值对象定义
+
+## 1. FollowupQuestion
 
 | 字段名 | 类型 | 必填 | 含义 | 约束 |
 | --- | --- | --- | --- | --- |
 | questionId | String | 是 | 问题 ID | 在同一会话内唯一 |
 | questionText | String | 是 | 问题文本 | 不可为空 |
-| answerType | String | 是 | 回答类型 | MVP 当前固定为 `text` |
-| isRequired | bool | 是 | 是否必答 | MVP 可默认 `false` |
+| answerType | String | 是 | 回答类型 | 当前仅允许 `text` |
+| isRequired | bool | 是 | 是否必答 | 当前可默认 `false` |
 
-## FollowupAnswer
+## 2. FollowupAnswer
 
 | 字段名 | 类型 | 必填 | 含义 | 约束 |
 | --- | --- | --- | --- | --- |
 | questionId | String | 是 | 对应问题 ID | 必须能在问题列表中找到 |
-| answerText | String? | 否 | 用户回答文本 | 可为空，表示跳过 |
+| answerText | String? | 否 | 用户回答文本 | 可为空，表示未填写 |
 | skipped | bool | 是 | 是否跳过 | 与 `answerText` 一起判断状态 |
 
-## SymptomItem
+## 3. SymptomItem
 
 | 字段名 | 类型 | 必填 | 含义 | 约束 |
 | --- | --- | --- | --- | --- |
-| label | String | 是 | 症状名称 | 不可为空 |
-| normalizedLabel | String? | 否 | 归一化后的症状名 | 可为空 |
+| label | String | 是 | 原始症状名 | 不可为空 |
+| normalizedLabel | String? | 否 | 归一化症状名 | 可空 |
 | severity | String | 是 | 症状强度 | 见 `SymptomSeverity` |
-| durationText | String? | 否 | 时长描述 | 可为空 |
-| note | String? | 否 | 补充说明 | 可为空 |
+| durationText | String? | 否 | 时长描述 | 可空 |
+| note | String? | 否 | 补充说明 | 可空 |
 
-## 状态枚举定义
+---
 
-## InputType
+## 五、状态枚举定义
+
+## 1. InputType
 
 - `text`
 - `image`
 - `voice`
 - `mixed`
 
-## HealthEventStatus
+## 2. EventTimeSource
 
-- `draft`：已创建原始记录，尚未进入追问或提取
-- `followup_pending`：等待追问
+- `user_input`
+- `system_default`
+- `ai_inferred`
+
+## 3. HealthEventStatus
+
+- `draft`：已创建原始记录，尚未发起追问或提取
+- `followup_pending`：已有追问问题，等待用户补充
 - `extracting`：正在执行结构化提取
 - `completed`：已有可用结构化结果
-- `failed`：提取或保存失败
+- `failed`：当前处理链路失败
 
-## AttachmentSourceType
+## 4. AttachmentSourceType
 
 - `camera`
 - `gallery`
 
-## FollowupSessionStatus
+## 5. FollowupSessionStatus
 
-- `pending`
-- `answered`
-- `skipped`
-- `completed`
-- `failed`
+- `pending`：问题已生成，尚未开始填写
+- `in_progress`：用户已开始填写，但未提交完成
+- `completed`：回答已完成
+- `skipped`：整轮追问被跳过
+- `failed`：追问流程失败
 
-## ExtractResultStatus
+### 说明
+
+旧版的 `answered` 与 `completed` 语义容易重叠。  
+当前统一保留 `completed` 表示本轮追问结束，避免双口径。
+
+## 6. ExtractResultStatus
 
 - `success`
 - `partial`
 - `failed`
 
-## ReportType
+## 7. ReportType
 
 - `week`
 - `month`
 - `quarter`
 
-## ReportStatus
+## 8. ReportStatus
 
 - `pending`
 - `generating`
@@ -231,16 +321,18 @@
 - `failed`
 - `expired`
 
-## SymptomSeverity
+## 9. SymptomSeverity
 
 - `unknown`
 - `mild`
 - `moderate`
 - `severe`
 
-## AI 输出 JSON 结构约束
+---
 
-## `POST /ai/followup`
+## 六、AI 输出 JSON 结构约束
+
+## 1. `POST /ai/followup`
 
 ### 请求体
 
@@ -258,6 +350,7 @@
 
 ```json
 {
+  "schemaVersion": 1,
   "questions": [
     {
       "questionId": "q1",
@@ -273,9 +366,12 @@
 
 1. `questions` 必须是数组。
 2. 问题对象必须包含 `questionId`、`questionText`、`answerType`、`isRequired`。
-3. MVP 当前 `answerType` 仅允许 `text`。
+3. 当前 `answerType` 仅允许 `text`。
+4. 响应必须带 `schemaVersion`。
 
-## `POST /ai/extract`
+---
+
+## 2. `POST /ai/extract`
 
 ### 请求体
 
@@ -297,7 +393,9 @@
 
 ```json
 {
+  "schemaVersion": 1,
   "eventTime": "2026-03-08T10:00:00+08:00",
+  "eventTimeSource": "ai_inferred",
   "symptoms": [
     {
       "label": "胃部不适",
@@ -320,11 +418,15 @@
 ### 约束
 
 1. 响应必须是对象。
-2. `symptoms` 必须是数组；若无结果可为空数组，不可返回字符串。
-3. `healthEvents` 与 `importantContext` 必须是字符串数组。
-4. `summary` 可为空，但字段应保留。
+2. `schemaVersion` 必须存在。
+3. `symptoms` 必须是数组；若无结果可为空数组，不可返回字符串。
+4. `healthEvents` 与 `importantContext` 必须是字符串数组。
+5. `summary` 是结构化结果级别的摘要，不等于 `HealthEvent.symptomSummary`，但后者可以由它派生。
+6. `eventTimeSource` 必须存在。
 
-## `POST /ai/report`
+---
+
+## 3. `POST /ai/report`
 
 ### 请求体
 
@@ -341,6 +443,7 @@
 
 ```json
 {
+  "schemaVersion": 1,
   "title": "本周健康报告",
   "summary": "本周主要问题为睡眠不足和轻度胃部不适。",
   "advice": [
@@ -355,68 +458,114 @@
 
 ### 约束
 
-1. `title`、`summary`、`advice`、`checkSuggestions`、`markdown` 为标准字段名。
-2. `advice` 与 `checkSuggestions` 必须是数组。
-3. 页面主展示优先使用 `markdown`，列表摘要可使用 `summary`。
+1. `schemaVersion` 必须存在。
+2. `title`、`summary`、`advice`、`checkSuggestions`、`markdown` 为标准字段名。
+3. `advice` 与 `checkSuggestions` 必须是数组。
+4. 页面主展示优先使用 `markdown`，列表摘要可使用 `summary`。
 
-## DTO / Entity / ViewModel / Domain Model 职责边界
+---
 
-### DTO
+## 七、标准化结果结构口径
+
+`ExtractResult.normalizedResultJson` 的标准结构定义如下：
+
+```json
+{
+  "schemaVersion": 1,
+  "eventTime": "2026-03-08T10:00:00+08:00",
+  "eventTimeSource": "ai_inferred",
+  "symptoms": [
+    {
+      "label": "胃部不适",
+      "normalizedLabel": "胃部不适",
+      "severity": "mild",
+      "durationText": "一天",
+      "note": null
+    }
+  ],
+  "healthEvents": [
+    "消化道不适"
+  ],
+  "importantContext": [
+    "近期睡眠不足"
+  ],
+  "summary": "轻度胃部不适，伴随胀气。"
+}
+```
+
+### 约束
+
+1. `schemaVersion` 必须存在。
+2. `eventTime` 必须存在。
+3. `eventTimeSource` 必须存在。
+4. `symptoms`、`healthEvents`、`importantContext` 必须存在，允许为空数组。
+5. `summary` 可空，但字段建议保留。
+
+---
+
+## 八、DTO / Entity / ViewModel / Domain Model 职责边界
+
+## 1. DTO
 
 - 只用于输入输出、序列化与反序列化
-- 可与接口、数据库字段形态接近
+- 可以与接口或数据库字段形态接近
 - 不承担页面展示逻辑
 
-### Entity
+## 2. Entity
 
 - 位于 domain 层
 - 表达稳定业务语义
 - 不依赖具体 JSON 结构和页面状态
 
-### ViewModel / VO
+## 3. ViewModel / VO
 
 - 位于 presentation 层或 presentation 附近
 - 只服务于页面展示组合
 - 不回写数据库，不作为跨层标准对象
 
-### Domain Model
+## 4. Domain Model
 
 - 只在用例需要组合多个 Entity 时引入
 - 若单个 Entity 足够表达业务，则不额外创建 Domain Model
 - 不允许以“以后可能会用到”为理由滥建 Domain Model
 
-## 核心对象结构口径
+---
 
-## 文本输入
+## 九、核心对象结构口径
+
+## 1. 文本输入
 
 - 优先写入 `HealthEvent.userInputText`
 - `inputType = text`
 
-## 图片输入
+## 2. 图片输入
 
 - 图片原文件写入本地文件系统
 - `Attachment.filePath` 保存路径
 - `inputType = image` 或 `mixed`
 
-## 语音输入
+## 3. 语音输入
 
-- MVP 以转写文本为主
+- 当前阶段以转写文本为主
 - 转写文本写入 `HealthEvent.userInputText`
-- 若保留音频文件，另行扩展附件类型；当前默认不要求
+- 若未来保留音频文件，再单独扩展附件类型；当前不要求
 
-## 症状记录
+## 4. 症状记录
 
-- 症状信息优先落在 `ExtractResult.normalizedResultJson` 的 `symptoms` 数组
-- 列表页只读取 `HealthEvent.symptomSummary` 作为摘要
-- 详情页可读取完整结构化结果
+- 症状事实优先落在 `ExtractResult.normalizedResultJson.symptoms`
+- 列表页可读取 `HealthEvent.symptomSummary` 或 `primarySymptomsCacheJson`
+- 详情页应读取完整结构化结果
+- 不允许把结构化症状事实只存在 `symptomSummary` 中
 
-## 报告摘要
+## 5. 报告摘要
 
 - 列表页可展示 `reportSummary`
 - 详情页主内容使用 `reportContent`
-- 两者不要求完全一致，但应来自同一份报告结果
+- 两者不要求逐字一致，但必须来自同一份报告结果
 
-## JSON 解析失败时的兜底约束
+---
+
+## 十、JSON 解析失败时的兜底约束
 
 1. 解析失败不能导致页面崩溃。
 2. 解析失败时不得伪造结构化字段。
@@ -431,3 +580,16 @@
 5. 若 JSON 类型不符合约定：
    - 不直接容忍为成功结果
    - 进入失败或部分成功分支，并保留原始响应用于排查
+
+---
+
+## 十一、当前版本建议的最小落地实现
+
+若当前仍处于 MVP 早期，推荐最小落地口径如下：
+
+1. `HealthEvent.symptomSummary` 保留为纯文本摘要字段。
+2. `HealthEvent.primarySymptomsCacheJson` 可先不落地，等确实需要列表多标签展示时再启用。
+3. `ExtractResult.normalizedResultJson` 作为唯一结构化结果主来源。
+4. `FollowupSession` 与 `ExtractResult` 一律加 `schemaVersion`。
+5. `Report` 增加 `contentFormat`，当前固定为 `markdown`。
+6. `Attachment.filePath` 统一收敛为应用可控目录路径，不混用绝对路径与临时 URI。
