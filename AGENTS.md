@@ -2,8 +2,8 @@
 
 ## 目的
 
-本文件是 AI 进入仓库后的第一入口。  
-它只负责说明：先读什么、按什么规则工作、遇到冲突怎么办、改完代码后必须做什么。  
+本文件是 AI 进入仓库后的第一入口。
+它只负责说明：先读什么、按什么规则工作、遇到冲突怎么办、改完代码后必须做什么。
 它不承载长期产品事实、字段口径、页面交互细节或设计原因。
 
 ## 项目文档体系
@@ -51,19 +51,19 @@
 
 1. 用户当前明确任务
 2. `AGENTS.md`
-3. 专用约束文档  
+3. 专用约束文档
    - `docs/product_facts.md`
    - `docs/architecture.md`
    - `docs/contracts.md`
    - `docs/acceptance.md`
    - `docs/doc_sync_matrix.md`
-4. 阶段性说明文档  
+4. 阶段性说明文档
    - `docs/product_notes.md`
    - `docs/architecture_notes.md`
-5. 风格与流程文档  
+5. 风格与流程文档
    - `docs/workflow.md`
    - `docs/conventions.md`
-6. 人类说明文档  
+6. 人类说明文档
    - `README.md`
    - `docs/project_overview.md`
 
@@ -125,6 +125,7 @@
 - 完成口径满足 `docs/acceptance.md`
 - 改动范围遵守 `docs/workflow.md`
 - 文档同步检查遵守 `docs/doc_sync_matrix.md`
+- All text files must use LF line endings. Do not introduce CRLF. Follow .gitattributes.
 
 ### 当输出最终结果时
 
@@ -152,7 +153,7 @@
 
 ### 基本规则
 
-对任何会修改代码的任务，AI 在结束前都必须读取并执行 `docs/doc_sync_matrix.md` 中的检查规则。  
+对任何会修改代码的任务，AI 在结束前都必须读取并执行 `docs/doc_sync_matrix.md` 中的检查规则。
 这里的“执行”指：根据本次代码改动判断哪些文档受影响，并在同一任务中完成同步更新，而不是仅口头说明。
 
 ### 必做事项
