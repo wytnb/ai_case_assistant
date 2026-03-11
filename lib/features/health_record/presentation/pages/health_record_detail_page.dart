@@ -96,9 +96,33 @@ class _AttachmentPreview extends StatelessWidget {
 
   final Attachment attachment;
 
+  Future<void> _showImagePreview(BuildContext context, String heroTag) async {
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Close image preview',
+      barrierColor: Colors.black87,
+      pageBuilder: (_, _, _) => _FullscreenImagePreview(
+        filePath: attachment.filePath,
+        heroTag: heroTag,
+      ),
+      transitionBuilder:
+          (
+            BuildContext context,
+            Animation<double> animation,
+            Animation<double> secondaryAnimation,
+            Widget child,
+          ) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+      transitionDuration: const Duration(milliseconds: 180),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isImageAttachment = attachment.fileType == 'image';
+    final String heroTag = 'attachment-${attachment.id}';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -108,20 +132,27 @@ class _AttachmentPreview extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             if (isImageAttachment)
-              ClipRRect(
+              InkWell(
                 borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 180,
-                  child: Image.file(
-                    File(attachment.filePath),
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Container(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.surfaceContainerHighest,
-                      alignment: Alignment.center,
-                      child: const Text('图片加载失败'),
+                onTap: () => _showImagePreview(context, heroTag),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 180,
+                    child: Hero(
+                      tag: heroTag,
+                      child: Image.file(
+                        File(attachment.filePath),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                          alignment: Alignment.center,
+                          child: const Text('图片加载失败'),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -132,6 +163,59 @@ class _AttachmentPreview extends StatelessWidget {
                 leading: Icon(Icons.attachment_outlined),
                 title: Text('当前附件暂不支持预览'),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FullscreenImagePreview extends StatelessWidget {
+  const _FullscreenImagePreview({
+    required this.filePath,
+    required this.heroTag,
+  });
+
+  final String filePath;
+  final String heroTag;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: SafeArea(
+        child: Stack(
+          children: <Widget>[
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Center(
+                  child: InteractiveViewer(
+                    minScale: 1,
+                    maxScale: 4,
+                    child: Hero(
+                      tag: heroTag,
+                      child: Image.file(
+                        File(filePath),
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, _, _) => const Text(
+                          '图片加载失败',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 12,
+              right: 12,
+              child: IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close, color: Colors.white),
+              ),
+            ),
           ],
         ),
       ),
