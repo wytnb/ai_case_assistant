@@ -2,13 +2,18 @@ import 'dart:async';
 
 import 'package:ai_case_assistant/core/database/app_database.dart';
 import 'package:ai_case_assistant/core/database/app_database_provider.dart';
+import 'package:ai_case_assistant/features/ai/domain/services/ai_extract_service.dart';
+import 'package:ai_case_assistant/features/ai/presentation/providers/ai_extract_service_provider.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 final Provider<HealthRecordService> healthRecordServiceProvider =
     Provider<HealthRecordService>((Ref ref) {
-      return HealthRecordService(ref.watch(appDatabaseProvider));
+      return HealthRecordService(
+        database: ref.watch(appDatabaseProvider),
+        aiExtractService: ref.watch(aiExtractServiceProvider),
+      );
     });
 
 final FutureProvider<List<HealthEvent>> healthRecordListProvider =
@@ -37,29 +42,33 @@ createHealthRecordControllerProvider =
     );
 
 class HealthRecordService {
-  HealthRecordService(this._database);
+  HealthRecordService({
+    required AppDatabase database,
+    required AiExtractService aiExtractService,
+  }) : _database = database,
+       _aiExtractService = aiExtractService;
 
   final AppDatabase _database;
+  final AiExtractService _aiExtractService;
   static const Uuid _uuid = Uuid();
 
-  Future<String> createHealthRecord({
-    required String rawText,
-    String? symptomSummary,
-    String? notes,
-  }) async {
+  Future<String> createHealthRecord({required String rawText}) async {
     final String id = _uuid.v4();
     final DateTime now = DateTime.now();
+    final String normalizedRawText = rawText.trim();
+    final AiExtractResult extractResult = await _aiExtractService
+        .extractFromRawText(rawText: normalizedRawText);
     final String? normalizedSymptomSummary = _normalizeOptionalText(
-      symptomSummary,
+      extractResult.symptomSummary,
     );
-    final String? normalizedNotes = _normalizeOptionalText(notes);
+    final String? normalizedNotes = _normalizeOptionalText(extractResult.notes);
 
     await _database.insertHealthEvent(
       HealthEventsCompanion(
         id: Value<String>(id),
         eventTime: Value<DateTime>(now),
         sourceType: const Value<String>('text'),
-        rawText: Value<String>(rawText.trim()),
+        rawText: Value<String>(normalizedRawText),
         symptomSummary: normalizedSymptomSummary == null
             ? const Value<String?>.absent()
             : Value<String?>(normalizedSymptomSummary),
@@ -104,21 +113,13 @@ class CreateHealthRecordController extends AutoDisposeAsyncNotifier<void> {
   @override
   FutureOr<void> build() {}
 
-  Future<String> createHealthRecord({
-    required String rawText,
-    String? symptomSummary,
-    String? notes,
-  }) async {
+  Future<String> createHealthRecord({required String rawText}) async {
     state = const AsyncLoading<void>();
 
     try {
       final String id = await ref
           .read(healthRecordServiceProvider)
-          .createHealthRecord(
-            rawText: rawText,
-            symptomSummary: symptomSummary,
-            notes: notes,
-          );
+          .createHealthRecord(rawText: rawText);
 
       state = const AsyncData<void>(null);
       ref.invalidate(healthRecordListProvider);
