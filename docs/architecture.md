@@ -109,6 +109,7 @@
 
 - 基础网络能力
 - 存储基础能力
+- 数据库入口与应用级 Provider 装配
 - 错误模型
 - 通用工具
 - 常量
@@ -146,6 +147,7 @@
 3. 仅在与业务无关、可跨 feature 复用时，才放入 `core/`。
 4. 不得把单个 feature 的私有组件提前抽到 `shared/`。
 5. 不得在 `core/` 中放具体业务枚举、业务文案、业务页面。
+6. 应用级数据库入口与数据库 Provider 可放在 `core/database/`；具体业务表定义仍放在对应 feature 的 `data/local/tables/` 中。
 
 ## 路由组织原则
 
@@ -189,6 +191,7 @@
 - 健康事件、附件元数据、追问会话、提取结果、报告属于本地主数据。
 - 本地数据库保存结构化数据。
 - 本地文件系统保存图片等附件原文件。
+- `AppDatabase` 负责汇总表注册、数据库连接和最小查询装配；具体业务表定义仍由各 feature 持有。
 - Presentation 不直接操作数据库和文件系统。
 
 ### 网络边界
@@ -217,10 +220,13 @@
 
 - `domain` → `presentation`
 - `domain` → `data` 的具体实现
-- `core` → 任意 feature 私有实现
 - `shared` → 任意 feature 私有实现
 - `presentation` → `data` 的具体数据源
 - 页面组件 → 数据库 / Dio / 文件系统
+
+说明：
+
+- `core/database` 允许为了数据库装配而引用各 feature 的 Drift 表定义，但该层只负责连接、注册和基础 Provider，不承载 feature 业务规则。
 
 ## 禁止越层调用的明确规则
 

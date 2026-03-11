@@ -82,48 +82,43 @@
 
 健康事件是核心主对象，表示一次有时间语义的健康相关记录。
 
+### 当前本地表最小骨架
+
+第二批“本地数据层最小骨架”落地时，`HealthEvent` 先只覆盖文本记录 MVP 所需的最小字段。  
+AI 追问、提取结果、状态流转等字段不在本批本地表中落地，后续在对应能力接入时再扩展。
+
 ### 字段定义
 
 | 字段名 | 类型 | 必填 | 层级 | 含义 | 约束 |
 | --- | --- | --- | --- | --- | --- |
 | id | String | 是 | 事实字段 | 健康事件业务主键 | UUID |
-| inputType | String | 是 | 事实字段 | 输入来源类型 | 见 `InputType` |
-| userInputText | String? | 否 | 原始输入字段 | 用户原始文本输入；语音场景存转写文本 | 文本为空时，必须至少有附件 |
 | eventTime | DateTime | 是 | 事实字段 | 健康事件发生时间 | 可来自用户输入、当前时间或 AI 推断后的回填 |
-| eventTimeSource | String | 是 | 事实字段 | `eventTime` 来源 | 见 `EventTimeSource` |
-| status | String | 是 | 事实字段 | 当前处理状态 | 见 `HealthEventStatus` |
+| sourceType | String | 是 | 事实字段 | 当前记录来源类型 | 当前至少能表达文本记录来源；详细枚举后续再收敛 |
+| rawText | String? | 否 | 原始输入字段 | 用户原始文本输入 | 当前文本记录 MVP 建议优先写入该字段 |
 | symptomSummary | String? | 否 | 缓存字段 | 用于列表展示的简短摘要文本 | 纯文本，不是 JSON；建议 120 字以内 |
-| primarySymptomsCacheJson | String? | 否 | 缓存字段 | 用于列表快速展示的主症状标签数组 | 可空；若存在，必须是字符串数组 JSON |
+| notes | String? | 否 | 补充字段 | 人工补充备注 | 纯文本，可空 |
 | createdAt | DateTime | 是 | 事实字段 | 创建时间 | 不可为空 |
 | updatedAt | DateTime | 是 | 事实字段 | 更新时间 | 每次修改后更新 |
 
 ### 约束
 
-1. `HealthEvent` 必须先保留原始输入，再追加 AI 结果。
-2. `status` 表示本条记录的整体处理状态，不等于提取结果状态。
-3. `symptomSummary` 是**展示缓存字段**，不是结构化事实字段。
-4. `symptomSummary` 必须是纯文本，不允许存任意 JSON。
-5. 若需要结构化症状事实，以 `ExtractResult.normalizedResultJson.symptoms` 为准。
-6. `primarySymptomsCacheJson` 仅用于列表快速展示，不作为结构化主来源。
-7. 当前阶段如果只需要一个列表摘要字段，可以只保留 `symptomSummary`，不强制启用 `primarySymptomsCacheJson`。
-8. 若未来需要按症状精确查询，不应继续扩展 `symptomSummary`，而应新增独立症状表或独立索引字段。
-
-### 关于 `symptomSummary` 的最终口径
-
-**结论：不改成固定 JSON。**
-
-原因：
-
-1. 它本质上是列表展示摘要，而不是结构化事实容器。
-2. 若改成 JSON，会与 `normalizedResultJson` 重复，增加双写漂移风险。
-3. 页面若只想展示摘要，文本更直接；页面若要结构化展示，应直接读 `normalizedResultJson`。
-4. 真正需要结构化查询时，应建独立结构，而不是滥用摘要字段。
+1. `HealthEvent` 在当前批次必须先保留原始输入，再为后续 AI 处理和详情展示留出扩展位。
+2. `sourceType` 当前只作为字符串落库，不在本批引入额外状态枚举约束。
+3. `rawText`、`symptomSummary`、`notes` 都必须是纯文本，不允许写入任意 JSON。
+4. `symptomSummary` 是**展示缓存字段**，不是结构化事实字段。
+5. `createdAt` 表示记录创建时间，`updatedAt` 表示记录最后更新时间，语义不得混用。
+6. AI 追问、提取、报告相关字段与状态不在本批 `HealthEvent` 表中落地。
 
 ---
 
 ## 2. Attachment
 
 附件表示挂靠在健康事件下的原始文件。
+
+### 当前本地表最小骨架
+
+第二批本地数据层只要求先表达“一个健康记录对应多个附件”的关系。  
+附件来源、MIME、文件大小和复杂删除联动不在本批强制落地。
 
 ### 字段定义
 
@@ -132,18 +127,16 @@
 | id | String | 是 | 附件业务主键 | UUID |
 | healthEventId | String | 是 | 所属健康事件 ID | 必须指向已有 `HealthEvent` |
 | filePath | String | 是 | 附件路径 | 推荐保存应用私有目录相对路径，不保存平台相关临时 URI |
-| fileType | String | 是 | 附件类型 | 当前 MVP 仅支持 `image` |
-| sourceType | String | 是 | 附件来源 | 见 `AttachmentSourceType` |
-| mimeType | String? | 否 | MIME 类型 | 可空 |
-| fileSizeBytes | int? | 否 | 文件大小 | 可空，若存在必须大于等于 0 |
+| fileType | String | 是 | 附件类型 | 当前先保留为字符串，后续可再收敛枚举 |
 | createdAt | DateTime | 是 | 创建时间 | 不可为空 |
 
 ### 约束
 
-1. 当前 MVP 只允许图片附件。
-2. 推荐保存应用可控目录路径，不保存一次性临时 URI。
-3. 删除附件时，业务层必须同时考虑文件删除与元数据删除的一致性。
-4. 文件不存在时，不应导致详情页崩溃；应展示降级提示。
+1. 当前结构上必须能表达“一个 `HealthEvent` 对应多个 `Attachment`”。
+2. `healthEventId` 应关联到已有健康事件；本批允许先不实现复杂级联删除。
+3. 推荐保存应用可控目录路径，不保存一次性临时 URI。
+4. `fileType` 当前保留为字符串，不在本批提前扩展来源、大小、MIME 等附加字段。
+5. 文件不存在时，不应导致详情页崩溃；应展示降级提示。
 
 ---
 
@@ -587,9 +580,9 @@
 
 若当前仍处于 MVP 早期，推荐最小落地口径如下：
 
-1. `HealthEvent.symptomSummary` 保留为纯文本摘要字段。
-2. `HealthEvent.primarySymptomsCacheJson` 可先不落地，等确实需要列表多标签展示时再启用。
-3. `ExtractResult.normalizedResultJson` 作为唯一结构化结果主来源。
-4. `FollowupSession` 与 `ExtractResult` 一律加 `schemaVersion`。
-5. `Report` 增加 `contentFormat`，当前固定为 `markdown`。
-6. `Attachment.filePath` 统一收敛为应用可控目录路径，不混用绝对路径与临时 URI。
+1. 第二批本地数据层先只落地 `HealthEvents` 与 `Attachments` 两张表。
+2. `HealthEvent` 当前最小字段为：`id`、`eventTime`、`sourceType`、`rawText`、`symptomSummary`、`notes`、`createdAt`、`updatedAt`。
+3. `Attachment` 当前最小字段为：`id`、`healthEventId`、`filePath`、`fileType`、`createdAt`。
+4. `HealthEvent.symptomSummary` 保留为纯文本摘要字段，不改成 JSON。
+5. `Attachment.filePath` 统一收敛为应用可控目录路径，不混用绝对路径与临时 URI。
+6. `FollowupSession`、`ExtractResult`、`Report` 等 AI / 报告相关表延后到对应批次再落地。
