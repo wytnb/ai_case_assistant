@@ -12,13 +12,13 @@
 
 - `AGENTS.md`：AI 协作总入口；定义阅读顺序、冲突优先级、总体执行原则、输出约束、文档同步规则。
 - `docs/product_facts.md`：产品长期事实；定义产品目标、目标用户、核心对象、长期成立的产品原则。
-- `docs/product_notes.md`：当前阶段产品规则；定义 MVP 范围、阶段性取舍、当前不做什么、已知限制与演进方向。
-- `docs/architecture.md`：长期架构事实；定义技术栈、分层、模块职责、目录组织、路由组织、依赖方向与边界。
+- `docs/product_notes.md`：当前阶段产品规则；定义当前已实现范围、阶段性取舍、当前不做什么、已知限制与下一步方向。
+- `docs/architecture.md`：当前结构事实；定义技术栈、目录组织、模块职责、路由组织、依赖方向与现阶段分层边界。
 - `docs/architecture_notes.md`：架构取舍说明；定义为什么这样选、当前限制、技术债、阶段性妥协与后续演进方向。
 - `docs/conventions.md`：工程与编码规范；定义命名、目录、文件、错误处理、日志、注释和常见模式的统一写法。
 - `docs/workflow.md`：AI 工作流程规范；定义接到任务后如何收敛范围、如何拆任务、何时只给方案、何时可直接改代码、如何同步文档。
-- `docs/contracts.md`：数据契约；定义核心实体、字段、状态枚举、AI JSON 结构、DTO / Entity / ViewModel / Domain Model 边界。
-- `docs/acceptance.md`：验收标准；定义页面、交互、数据、异常、文档同步的完成口径。
+- `docs/contracts.md`：数据契约；定义当前实际落地的数据对象、字段、状态口径、AI JSON 结构、当前跨层对象边界。
+- `docs/acceptance.md`：验收标准；定义当前版本页面、交互、数据、异常、文档同步的完成口径。
 - `docs/doc_sync_matrix.md`：文档同步矩阵；定义“改哪类代码，必须检查和更新哪些文档”。
 
 ### 人类存档层
@@ -42,6 +42,7 @@
 - 数据模型任务：`architecture` → `contracts` → `acceptance`
 - AI 接口任务：`product_notes` → `architecture` → `contracts` → `acceptance`
 - Bug 修复任务：`architecture` → `contracts` → `conventions` → `acceptance`
+- 文档同步任务：`workflow` → 相关专用文档 → 相关代码目录 → `doc_sync_matrix`
 - 说明文档任务：`README.md` / `project_overview.md`
 - 规则或流程任务：`AGENTS.md` → `workflow.md` → `doc_sync_matrix.md`
 
@@ -81,6 +82,10 @@
   - “做到什么算完成”以 `acceptance` 为准。
 - `doc_sync_matrix` 与个人习惯冲突时：
   - 文档同步检查以 `doc_sync_matrix` 为准。
+- 当用户明确要求“按当前实际代码进度同步文档”时：
+  - 当前已落地实现以代码为取证基础；
+  - 长期事实仍须写入长期文档，不能把阶段性状态硬写成长期结论；
+  - 不能把“未来计划中的对象或页面”写成“当前已实现”。
 
 ## AI 总体执行原则
 
@@ -91,6 +96,10 @@
 5. 先满足 MVP 可演示与可验收，再考虑泛化。
 6. 对不确定事项采用保守默认值，不擅自扩展产品范围。
 7. 输出必须让人能判断：改了什么、没改什么、风险在哪里、文档是否已同步。
+8. 做文档同步任务时，必须区分：
+   - 当前已实现
+   - 当前未实现但计划中
+   - 长期稳定事实
 
 ## AI 不应做的事情
 
@@ -101,6 +110,7 @@
 - 不为了“更完整”引入账号体系、云同步、后台管理系统、复杂权限系统等非 MVP 设施。
 - 不把 AI 自由文本直接当作结构化事实落库。
 - 不在单次任务中同时处理“功能新增 + 大范围重构 + 风格统一 + 性能优化”。
+- 不把代码里尚未出现的 feature、页面、数据表、路由当成“当前进度”。
 
 ## 输出结果的总体约束
 
@@ -125,7 +135,7 @@
 - 完成口径满足 `docs/acceptance.md`
 - 改动范围遵守 `docs/workflow.md`
 - 文档同步检查遵守 `docs/doc_sync_matrix.md`
-- All text files must use LF line endings. Do not introduce CRLF. Follow .gitattributes.
+- All text files must use LF line endings. Do not introduce CRLF. Follow `.gitattributes`.
 
 ### 当输出最终结果时
 
@@ -139,7 +149,7 @@
 ## 当任务信息不足时的默认处理原则
 
 1. 优先使用仓库现有结构、既有命名和既有契约；不要自创新模式。
-2. 若产品规则不足，按 MVP、离线优先、薄后端、本地结构化数据优先、AI 输出 JSON 化处理。
+2. 若产品规则不足，按 MVP、离线优先、本地结构化数据优先、薄 AI 代理优先处理。
 3. 若页面细节不足，先实现最小可演示闭环，不补充高级交互。
 4. 若异常处理细节不足，至少提供：
    - 加载中

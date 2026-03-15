@@ -2,58 +2,100 @@
 
 ## 项目简介
 
-AI 健康病例助手是一个单人开发的移动端 MVP 项目。  
-项目目标是在 Android 真机上尽快做出可演示版本，用于作品展示、面试和学习 AI 辅助开发。
+AI 健康病例助手是一个以 Android 演示为主的移动端 MVP 项目。
+项目目标是做出一个可以真实跑通的“健康记录 + AI 整理 + 报告生成”闭环，用于作品展示、面试讲解和 AI 协作开发实践。
 
-应用面向重视健康的普通用户，帮助用户通过文字、图片、语音等方式记录健康信息，并通过 AI 将输入整理为结构化事件，再生成周期性健康报告。
+当前版本已经不是单纯的工程骨架，而是具备以下真实链路：
 
-## 项目目标
+1. 输入原始描述
+2. 可选选择多张图片
+3. 调用 AI 提取摘要与备注
+4. 本地保存健康记录与附件
+5. 浏览记录列表与详情
+6. 生成并查看周报 / 月报 / 季报
 
-当前阶段的目标不是商业化，而是尽快跑通一个可演示闭环：
+## 当前已实现内容
 
-1. 录入健康信息
-2. 结构化整理输入
-3. 本地保存记录与附件
-4. 浏览历史记录
-5. 生成周报 / 月报 / 季报
+### 页面与路由
 
-## 当前阶段
+- 首页 `/`
+- 健康记录列表 `/records`
+- 新增记录 `/records/new`
+- 健康记录详情 `/records/:id`
+- 报告列表 `/reports`
+- 报告详情 `/reports/:id`
 
-- 已完成基础环境配置
-- 已完成 Flutter 项目初始化
-- 已进入正式开发阶段
-- 已建立 AI 协作文档体系
-- 已完成正式应用入口替换
-- 已建立基础路由骨架
-- 已建立 Drift 本地数据库入口与健康记录最小数据表骨架
-- 已跑通文字记录“新增 -> 本地保存 -> 列表 -> 详情”最小闭环
-- 当前重点是继续把附件、AI 和报告链路逐步接到真实数据流上
+### 健康记录能力
+
+- 文本录入健康信息
+- 从相册选择多张图片
+- 图片缩略图预览
+- 提交前调用 AI 提取 `symptomSummary` 和 `notes`
+- 本地保存健康记录到 Drift
+- 将图片复制到应用私有目录
+- 详情页回显附件，并支持点击放大查看
+
+### 报告能力
+
+- 手动切换并生成 `week`、`month`、`quarter`
+- 生成结果落库到本地 `reports` 表
+- 同一时间范围重复生成时按覆盖更新处理
+- 报告详情页展示标题、摘要、建议和 Markdown 原文
+
+### AI 能力
+
+- `POST /ai/extract`
+- `POST /ai/report`
+- `USE_MOCK_AI_EXTRACT=true` 时可切换到本地 mock 提取实现
+
+## 当前未实现内容
+
+以下能力仍未落地：
+
+- AI 追问页与追问会话落库
+- 独立提取结果表
+- 记录编辑 / 删除
+- 语音输入
+- OCR 或图片内容提取
+- 设置页
+- 云同步
+- 账号体系
 
 ## 技术栈概览
+
+### 当前实际使用
 
 - Flutter
 - Dart
 - Riverpod
 - go_router
 - Dio
+- Drift
+- image_picker
+- path_provider / path
+- uuid
+- intl
+
+### 当前用于代码生成
+
+- build_runner
+- drift_dev
+
+### 已引入但暂未在业务代码中使用
+
 - freezed / json_serializable
-- Drift（优先）
-- 本地图片存储
-- WorkManager
-- 极薄 AI API 代理
 
 ## 目录概览
 
-以下为推荐结构概览，实际以仓库当前代码为准：
-
-- `lib/app/`：应用启动、路由、主题、全局装配
-- `lib/core/`：通用基础能力，如网络、存储、错误、工具
-- `lib/features/`：按功能划分的业务模块
-- `lib/shared/`：跨模块复用的 UI 与 Provider
+- `lib/app/`：应用入口、路由、首页
+- `lib/core/`：配置、Dio、Drift 数据库入口
+- `lib/features/ai/`：AI 接口、异常、mock / remote 实现
+- `lib/features/health_record/`：记录表、附件存储、记录页面与 Provider
+- `lib/features/report/`：报告表、报告页面与 Provider
 - `docs/`：项目文档
-- `scripts/`：本地辅助脚本
+- `scripts/`：文档同步检查脚本
+- `test/`：测试
 - `AGENTS.md`：AI 协作入口
-- `README.md`：项目入口说明
 
 ## 如何运行项目
 
@@ -62,44 +104,49 @@ AI 健康病例助手是一个单人开发的移动端 MVP 项目。
 - 已安装 Flutter
 - 已安装 Android Studio / Android SDK / ADB
 - 已安装 FVM
-- 已连接 Android 14 真机或已创建模拟器
+- 已连接 Android 真机或已创建模拟器
 
 ### 运行步骤
 
 1. 安装依赖
 
-`fvm flutter pub get`
+```bash
+fvm flutter pub get
+```
 
-2. 生成代码（如项目已使用 freezed / json_serializable / drift）
+2. 生成 Drift 代码
 
-`fvm flutter pub run build_runner build --delete-conflicting-outputs`
+```bash
+fvm flutter pub run build_runner build --delete-conflicting-outputs
+```
 
 3. 启动应用
 
-`fvm flutter run`
+```bash
+fvm flutter run
+```
 
-### 说明
+### 常用可选参数
 
-- 项目默认使用 FVM 固定 Flutter 版本。
-- 本地数据库、图片附件、环境变量等本地文件不应提交到 Git。
-- 若 AI 代理未配置完成，相关功能应允许以 mock / 占位方式运行，而不影响基础页面演示。
+指定 AI 代理地址：
 
-## 当前已实现内容
+```bash
+fvm flutter run --dart-define=AI_API_BASE_URL=https://your-worker.example.com
+```
 
-当前仓库重点处于“工程规范与协作约束”阶段，通常包括：
+使用本地 mock 提取：
 
-- Flutter 基础工程已初始化
-- 目录结构已编排
-- 正式 `main.dart` / `app.dart` 应用入口已就位
-- `go_router` 基础路由已接入
-- 首页、健康记录列表、新增记录、报告页已可运行
-- `AppDatabase`、`HealthEvents`、`Attachments` 最小本地数据层已建立
-- Riverpod 数据库 Provider 已建立，可供后续页面和 repository 复用
-- 文字记录最小闭环已打通，可完成新增、本地保存、列表展示、详情展示
-- Android 真机开发环境已可用
-- AI 执行层与人类存档层文档已建立
-- 文档同步矩阵已建立
-- 文档同步检查脚本已加入
+```bash
+fvm flutter run --dart-define=USE_MOCK_AI_EXTRACT=true
+```
+
+## 当前实现细节说明
+
+- 首页当前仍是静态入口页，不展示最近记录摘要。
+- 新增记录时，AI 提取当前只提交 `rawText`，图片不会传给 AI。
+- `HealthEvent.sourceType` 当前统一保存为 `text`。
+- 报告详情页当前直接显示 Markdown 原文，没有 Markdown 富渲染。
+- 当前仅有基础首页 widget smoke test，测试覆盖仍在补充中。
 
 ## 核心文档入口
 
@@ -123,21 +170,20 @@ AI 健康病例助手是一个单人开发的移动端 MVP 项目。
 
 ## 脚本入口
 
-- `scripts/check_doc_sync.py`：检查本次代码改动是否需要同步更新文档，并给出建议文档列表
+- `scripts/check_doc_sync.py`：检查代码改动是否需要同步更新文档，并给出建议文档列表
 - `scripts/run_doc_sync_check.bat`：Windows 下运行文档同步检查脚本的快捷入口
 
 ## 当前已确定的核心原则
 
-- 离线优先
-- 薄后端
-- 本地结构化数据优先
-- AI 输出 JSON 化
+- 离线优先保存本地数据
+- AI 只做辅助整理，不做诊断
 - 先做可演示 MVP，再逐步增强
+- 当前以真实可运行闭环优先，不急于补齐所有抽象层
 
 ## 后续计划概览
 
-1. 接入图片附件选择、保存与详情回显
-2. 接入 AI 追问与提取所需的后续表和页面状态
-3. 固化 AI 接口契约与后续表结构
-4. 跑通“录入 → 保存 → 列表 → 详情 → AI/报告”闭环
-5. 再逐步补充异常处理、后台任务、就医前摘要等增强能力
+1. 让首页承载更多真实数据概览
+2. 补充记录编辑 / 删除与更完整的附件管理
+3. 继续收敛健康记录和报告模块的服务边界
+4. 补 AI 追问和更细粒度结构化结果
+5. 增加测试覆盖与更多异常场景验证

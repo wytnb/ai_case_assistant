@@ -1,238 +1,246 @@
-# 长期架构事实
+# 当前架构事实
 
 ## 文档目的
 
-本文件定义系统长期采用的结构事实，包括技术栈、分层、模块职责、目录组织、状态管理、数据流方向与依赖约束。  
-本文件用于限制代码如何组织，而不是解释为什么这样选择。
+本文件定义系统当前采用的结构事实，包括技术栈、目录组织、模块职责、路由组织、状态管理和依赖约束。
+本文件描述“代码现在是怎么组织的”，而不是解释为什么这样选择。
 
-## 技术栈
+## 当前实际技术栈
+
+### 运行时与框架
 
 - Flutter
 - Dart
+- Material 3
 - Riverpod
 - go_router
 - Dio
-- freezed / json_serializable
-- Drift（优先）
-- 本地文件存储
-- WorkManager
-- 极薄 AI API 代理
+- Drift
+- image_picker
+- path_provider
+- path
+- uuid
+- intl
+
+### 代码生成与开发工具
+
+- build_runner
+- drift_dev
+
+### 说明
+
+- `freezed` / `json_serializable` 依赖已在工程中引入，但当前业务代码尚未实际使用。
+- 当前仓库中没有接入 WorkManager、后台任务框架或独立设置模块。
 
 ## 总体架构原则
 
-1. 以客户端为主，后端为薄代理。
-2. 以本地结构化数据为主，网络结果为输入来源之一。
-3. 以 feature 为第一组织维度，以 layer 为第二组织维度。
-4. 页面层只负责展示与交互，不负责直接访问数据库或拼装网络协议。
-5. 数据必须沿着明确方向流动：输入 → 提取 / 解析 → 仓储 → 展示 / 报告。
-6. AI 代理只负责提供稳定接口边界，不承载本项目的主业务状态。
+1. 以客户端为主，AI 服务端为薄代理。
+2. 以本地数据库和本地文件存储为主数据承载方式。
+3. 以 feature 为第一组织维度。
+4. 路由统一收口在 `app/router/`。
+5. 页面不直接调用 Dio，不直接读写本地文件。
+6. 页面通过 Riverpod Provider 触发服务逻辑、读取异步状态和查询结果。
+7. 当前阶段允许部分 feature 采用“Provider + 服务类”的薄分层，而不是一次性补齐 repository / use case / entity 全套抽象。
 
-## 架构分层
+## 当前目录组织
 
-### Presentation 层
+### app
+
+- `lib/app/app.dart`：`MaterialApp.router` 装配
+- `lib/app/router/app_router.dart`：应用路由注册
+- `lib/app/presentation/pages/home_page.dart`：首页
+
+### core
+
+- `lib/core/config/`：应用级配置，例如 dart-define 开关
+- `lib/core/network/`：Dio Provider
+- `lib/core/database/`：Drift 数据库入口、表注册、数据库方法、数据库 Provider
+
+### features/ai
+
+- `data/remote/`：远程 AI 服务实现
+- `data/mock/`：本地 mock 提取服务
+- `domain/services/`：AI 服务接口与当前请求 / 响应对象
+- `domain/exceptions/`：AI 异常类型
+- `presentation/providers/`：AI 服务 Provider 装配
+
+### features/health_record
+
+- `data/local/tables/`：健康记录与附件表定义
+- `data/local/health_record_attachment_storage.dart`：附件复制与清理
+- `presentation/providers/health_record_providers.dart`：列表、详情、附件、创建控制器和记录服务
+- `presentation/pages/`：新增、列表、详情页面
+
+### features/report
+
+- `data/local/tables/`：报告表定义
+- `presentation/providers/report_providers.dart`：报告筛选状态、列表、详情、生成控制器和报告服务
+- `presentation/pages/`：报告列表、报告详情页面
+
+## 当前分层边界
+
+### 页面层
 
 职责：
 
-- 页面
-- 组件
-- 路由入口
-- 用户交互
-- 页面状态订阅
-- 将用户操作转为用例调用
+- 展示 UI
+- 处理用户交互
+- 订阅 Riverpod 状态
+- 调用 Provider 暴露出的控制器或服务入口
 
 禁止：
 
-- 直接操作数据库
-- 直接拼接 HTTP 请求
-- 直接读写本地文件
-- 直接解析 AI 原始 JSON
+- 直接调用 Dio
+- 直接复制或删除本地附件文件
+- 直接拼装 AI 请求 JSON
 
-### Domain 层
+### Provider / Feature Service 层
+
+当前 `health_record` 和 `report` 采用这一层承接页面编排。
 
 职责：
 
-- 核心实体
-- 用例
-- 仓储接口
-- 面向业务含义的模型与规则
+- 装配依赖
+- 管理页面所需异步状态
+- 调用数据库方法、AI 服务、附件存储
+- 组织保存、查询、生成等用例流程
 
-禁止：
+当前实现位置：
 
-- 依赖 Flutter UI
-- 依赖具体数据库实现
-- 依赖具体网络实现
-- 持有展示层状态对象
+- `health_record/presentation/providers/health_record_providers.dart`
+- `report/presentation/providers/report_providers.dart`
 
 ### Data 层
 
 职责：
 
-- DTO
-- Mapper
-- 本地数据源
-- 远程数据源
-- 仓储实现
-- 序列化与反序列化
-- 文件路径管理实现
+- Drift 表定义
+- 本地文件存储实现
+- 远程 AI 服务实现
+- 数据库入口和数据库查询方法
 
-禁止：
+### AI Domain 层
 
-- 依赖页面组件
-- 依赖页面状态对象
-- 绕过仓储接口向上暴露底层实现细节
-
-### Core / Shared 层
+当前只在 AI 模块中显式存在。
 
 职责：
 
-- 全局通用能力
-- 错误对象
-- 网络客户端
-- 通用工具
-- 跨模块复用组件与 Provider
+- AI 提取与报告服务接口
+- AI 请求 / 响应值对象
+- AI 异常类型
 
-禁止：
-
-- 承载具体业务规则
-- 反向依赖某个 feature 的内部实现
-
-## 核心模块职责
+## 当前模块职责
 
 ### app
 
-- 应用启动
-- 路由装配
-- 全局主题
-- ProviderScope 与应用级初始化
+- 启动应用
+- 提供主题
+- 注册路由
 
 ### core
 
-- 基础网络能力
-- 存储基础能力
-- 数据库入口与应用级 Provider 装配
-- 错误模型
-- 通用工具
-- 常量
-
-### features/health_record
-
-- 健康事件新增、编辑、详情、列表
-- 附件挂载
-- 追问与提取触发
-- 历史记录浏览
-
-### features/report
-
-- 周报 / 月报 / 季报
-- 报告列表与详情
-- 报告补算触发
+- 提供 Dio
+- 提供 Drift 数据库连接
+- 汇总各 feature 的表注册和数据库方法
 
 ### features/ai
 
-- AI 代理接口调用
-- AI 原始结果与结构化结果适配
-- JSON 解析与兜底
+- 对外暴露 AI 提取与报告服务接口
+- 封装远程请求、错误映射和返回值校验
+- 提供 mock 提取实现切换
 
-### features/settings
+### features/health_record
 
-- 本地设置
-- 隐私开关
-- 本地安全入口
-- 调试配置或环境配置入口
+- 创建健康记录
+- 保存 AI 提取后的摘要与备注
+- 复制图片附件到应用私有目录
+- 查询记录列表、详情和附件
 
-## 目录组织原则
+### features/report
 
-1. 先按业务 feature 分目录，再在 feature 内按 `data / domain / presentation` 分层。
-2. 仅在确实跨 feature 复用时，才放入 `shared/`。
-3. 仅在与业务无关、可跨 feature 复用时，才放入 `core/`。
-4. 不得把单个 feature 的私有组件提前抽到 `shared/`。
-5. 不得在 `core/` 中放具体业务枚举、业务文案、业务页面。
-6. 应用级数据库入口与数据库 Provider 可放在 `core/database/`；具体业务表定义仍放在对应 feature 的 `data/local/tables/` 中。
+- 读取指定时间范围内的健康记录
+- 调用 AI 报告接口
+- 将报告落库并处理同范围覆盖更新
+- 展示报告列表和详情
 
-## 路由组织原则
+## 路由组织事实
 
-1. 路由统一在 `app/router/` 注册。
-2. feature 页面可以定义本模块路由常量或 route builder，但最终统一汇总到应用路由层。
-3. 页面之间通过路由参数或受控状态传递最小必要信息。
-4. 禁止通过全局可变对象在页面间传递隐式上下文。
-5. 路由参数优先传 ID，不传大对象。
+当前集中在 `lib/app/router/app_router.dart`：
 
-## 状态管理原则
+- `/`：首页
+- `/records`：健康记录列表
+- `/records/new`：新增记录
+- `/records/:id`：记录详情
+- `/reports`：报告列表
+- `/reports/:id`：报告详情
 
-1. 使用 Riverpod 作为统一状态管理方案。
-2. 页面状态、异步状态、依赖注入统一走 Riverpod。
-3. Provider 负责装配依赖与提供状态，不负责承载复杂序列化细节。
-4. 页面不直接持有 Repository 实现类实例。
+当前没有设置页、追问页、编辑页等额外路由。
 
-## 数据流方向
+## 状态管理事实
 
-### 健康记录链路
+1. 使用 Riverpod 统一做依赖注入和页面异步状态。
+2. 记录列表、详情、附件列表、报告列表、报告详情使用 `FutureProvider`。
+3. 新增记录和生成报告使用 `AutoDisposeAsyncNotifierProvider`。
+4. 报告类型切换使用 `StateProvider`。
+5. 页面不直接持有 Dio 或 `AppDatabase` 实例。
 
-用户输入  
-→ Presentation 收集输入  
-→ Domain 用例编排  
-→ Data 层保存原始输入与附件  
-→ 可选触发 AI 追问 / 提取  
-→ 结构化结果回写本地  
-→ Presentation 展示列表与详情
+## 当前数据承载边界
 
-### 报告链路
+### 本地数据库
 
-本地健康事件集合  
-→ Domain 用例聚合时间范围  
-→ Data 层调用 AI 报告接口  
-→ 报告结果本地落库  
-→ Presentation 展示报告列表与详情
+`AppDatabase` 当前注册了三张表：
 
-## 本地存储、网络、AI 代理边界
+- `health_events`
+- `attachments`
+- `reports`
 
-### 本地存储边界
+数据库方法集中在 `lib/core/database/app_database.dart` 中，包括：
 
-- 健康事件、附件元数据、追问会话、提取结果、报告属于本地主数据。
-- 本地数据库保存结构化数据。
-- 本地文件系统保存图片等附件原文件。
-- `AppDatabase` 负责汇总表注册、数据库连接和最小查询装配；具体业务表定义仍由各 feature 持有。
-- Presentation 不直接操作数据库和文件系统。
+- 记录列表 / 详情查询
+- 按时间范围查询记录
+- 插入记录
+- 插入附件
+- 查询附件
+- 插入报告
+- 更新报告
+- 查询报告
+- 删除重复报告
 
-### 网络边界
+### 本地文件系统
 
-- 网络层只访问极薄 AI 代理，不直连模型供应商接口。
-- 网络层返回 DTO 或原始响应对象，不直接返回页面展示对象。
-- 网络层不承担页面状态管理。
+- 附件复制到应用 documents 目录下的 `health_records/<healthEventId>/attachments/`
+- 当前仅处理图片附件
+- 数据库存储的是复制后的目标文件路径
 
-### AI 代理边界
+### 网络与 AI 代理
 
-- 隐藏模型密钥
-- 转发和约束 AI 请求
-- 返回结构化 JSON
-- 不承担完整用户体系、主业务存储和复杂流程编排
+- `POST /ai/extract`：新增记录时调用
+- `POST /ai/report`：生成报告时调用
+- 当前不直连模型供应商接口，不在页面层处理原始 HTTP 响应
 
-## 依赖方向约束
+## 当前依赖方向约束
 
 ### 允许的依赖方向
 
-- `presentation` → `domain`
-- `data` → `domain`
-- `app` → `core` / `shared` / `features`
-- `shared` → `core`
+- `app` → `core` / `features`
+- `features/*/presentation/pages` → `features/*/presentation/providers`
+- `features/*/presentation/providers` → `core` / `features/ai` / 本 feature 的 `data`
+- `features/ai/presentation/providers` → `features/ai/data` / `core/network`
+- `core/database` → feature 的 Drift 表定义
 
-### 禁止的依赖方向
+### 当前明确不做的依赖方向
 
-- `domain` → `presentation`
-- `domain` → `data` 的具体实现
-- `shared` → 任意 feature 私有实现
-- `presentation` → `data` 的具体数据源
-- 页面组件 → 数据库 / Dio / 文件系统
+- 页面 → Dio
+- 页面 → 本地文件系统
+- 页面 → Drift 表查询
+- `core` → feature 页面
 
-说明：
+## 当前未落地的结构
 
-- `core/database` 允许为了数据库装配而引用各 feature 的 Drift 表定义，但该层只负责连接、注册和基础 Provider，不承载 feature 业务规则。
+以下结构不属于当前实现事实，不应写成“已存在”：
 
-## 禁止越层调用的明确规则
-
-1. 页面不能直接调用本地数据源。
-2. 页面不能直接调用远程数据源。
-3. 页面不能直接使用 Drift 表或 SQL 查询。
-4. Repository 实现不能直接返回展示层 VO。
-5. DTO 不能作为页面长期持有的展示对象。
-6. `core` 中的通用能力不能读取 feature 私有状态。
+- `shared/` 公共 UI 层
+- `features/settings`
+- 健康记录或报告的 repository 接口与实现
+- 健康记录或报告的独立 use case 层
+- FollowupSession / ExtractResult 对应的数据表与页面
