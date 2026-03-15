@@ -896,11 +896,628 @@ class AttachmentsCompanion extends UpdateCompanion<Attachment> {
   }
 }
 
+class $ReportsTable extends Reports with TableInfo<$ReportsTable, Report> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReportsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reportTypeMeta = const VerificationMeta(
+    'reportType',
+  );
+  @override
+  late final GeneratedColumn<String> reportType = GeneratedColumn<String>(
+    'report_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rangeStartMeta = const VerificationMeta(
+    'rangeStart',
+  );
+  @override
+  late final GeneratedColumn<DateTime> rangeStart = GeneratedColumn<DateTime>(
+    'range_start',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rangeEndMeta = const VerificationMeta(
+    'rangeEnd',
+  );
+  @override
+  late final GeneratedColumn<DateTime> rangeEnd = GeneratedColumn<DateTime>(
+    'range_end',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _summaryMeta = const VerificationMeta(
+    'summary',
+  );
+  @override
+  late final GeneratedColumn<String> summary = GeneratedColumn<String>(
+    'summary',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _adviceJsonMeta = const VerificationMeta(
+    'adviceJson',
+  );
+  @override
+  late final GeneratedColumn<String> adviceJson = GeneratedColumn<String>(
+    'advice_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _markdownMeta = const VerificationMeta(
+    'markdown',
+  );
+  @override
+  late final GeneratedColumn<String> markdown = GeneratedColumn<String>(
+    'markdown',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _generatedAtMeta = const VerificationMeta(
+    'generatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> generatedAt = GeneratedColumn<DateTime>(
+    'generated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    reportType,
+    rangeStart,
+    rangeEnd,
+    title,
+    summary,
+    adviceJson,
+    markdown,
+    generatedAt,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'reports';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Report> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('report_type')) {
+      context.handle(
+        _reportTypeMeta,
+        reportType.isAcceptableOrUnknown(data['report_type']!, _reportTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_reportTypeMeta);
+    }
+    if (data.containsKey('range_start')) {
+      context.handle(
+        _rangeStartMeta,
+        rangeStart.isAcceptableOrUnknown(data['range_start']!, _rangeStartMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_rangeStartMeta);
+    }
+    if (data.containsKey('range_end')) {
+      context.handle(
+        _rangeEndMeta,
+        rangeEnd.isAcceptableOrUnknown(data['range_end']!, _rangeEndMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_rangeEndMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('summary')) {
+      context.handle(
+        _summaryMeta,
+        summary.isAcceptableOrUnknown(data['summary']!, _summaryMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_summaryMeta);
+    }
+    if (data.containsKey('advice_json')) {
+      context.handle(
+        _adviceJsonMeta,
+        adviceJson.isAcceptableOrUnknown(data['advice_json']!, _adviceJsonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_adviceJsonMeta);
+    }
+    if (data.containsKey('markdown')) {
+      context.handle(
+        _markdownMeta,
+        markdown.isAcceptableOrUnknown(data['markdown']!, _markdownMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_markdownMeta);
+    }
+    if (data.containsKey('generated_at')) {
+      context.handle(
+        _generatedAtMeta,
+        generatedAt.isAcceptableOrUnknown(
+          data['generated_at']!,
+          _generatedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_generatedAtMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Report map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Report(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      reportType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}report_type'],
+      )!,
+      rangeStart: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}range_start'],
+      )!,
+      rangeEnd: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}range_end'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      summary: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}summary'],
+      )!,
+      adviceJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}advice_json'],
+      )!,
+      markdown: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}markdown'],
+      )!,
+      generatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}generated_at'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ReportsTable createAlias(String alias) {
+    return $ReportsTable(attachedDatabase, alias);
+  }
+}
+
+class Report extends DataClass implements Insertable<Report> {
+  final String id;
+  final String reportType;
+  final DateTime rangeStart;
+  final DateTime rangeEnd;
+  final String title;
+  final String summary;
+  final String adviceJson;
+  final String markdown;
+  final DateTime generatedAt;
+  final DateTime createdAt;
+  const Report({
+    required this.id,
+    required this.reportType,
+    required this.rangeStart,
+    required this.rangeEnd,
+    required this.title,
+    required this.summary,
+    required this.adviceJson,
+    required this.markdown,
+    required this.generatedAt,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['report_type'] = Variable<String>(reportType);
+    map['range_start'] = Variable<DateTime>(rangeStart);
+    map['range_end'] = Variable<DateTime>(rangeEnd);
+    map['title'] = Variable<String>(title);
+    map['summary'] = Variable<String>(summary);
+    map['advice_json'] = Variable<String>(adviceJson);
+    map['markdown'] = Variable<String>(markdown);
+    map['generated_at'] = Variable<DateTime>(generatedAt);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  ReportsCompanion toCompanion(bool nullToAbsent) {
+    return ReportsCompanion(
+      id: Value(id),
+      reportType: Value(reportType),
+      rangeStart: Value(rangeStart),
+      rangeEnd: Value(rangeEnd),
+      title: Value(title),
+      summary: Value(summary),
+      adviceJson: Value(adviceJson),
+      markdown: Value(markdown),
+      generatedAt: Value(generatedAt),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory Report.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Report(
+      id: serializer.fromJson<String>(json['id']),
+      reportType: serializer.fromJson<String>(json['reportType']),
+      rangeStart: serializer.fromJson<DateTime>(json['rangeStart']),
+      rangeEnd: serializer.fromJson<DateTime>(json['rangeEnd']),
+      title: serializer.fromJson<String>(json['title']),
+      summary: serializer.fromJson<String>(json['summary']),
+      adviceJson: serializer.fromJson<String>(json['adviceJson']),
+      markdown: serializer.fromJson<String>(json['markdown']),
+      generatedAt: serializer.fromJson<DateTime>(json['generatedAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'reportType': serializer.toJson<String>(reportType),
+      'rangeStart': serializer.toJson<DateTime>(rangeStart),
+      'rangeEnd': serializer.toJson<DateTime>(rangeEnd),
+      'title': serializer.toJson<String>(title),
+      'summary': serializer.toJson<String>(summary),
+      'adviceJson': serializer.toJson<String>(adviceJson),
+      'markdown': serializer.toJson<String>(markdown),
+      'generatedAt': serializer.toJson<DateTime>(generatedAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  Report copyWith({
+    String? id,
+    String? reportType,
+    DateTime? rangeStart,
+    DateTime? rangeEnd,
+    String? title,
+    String? summary,
+    String? adviceJson,
+    String? markdown,
+    DateTime? generatedAt,
+    DateTime? createdAt,
+  }) => Report(
+    id: id ?? this.id,
+    reportType: reportType ?? this.reportType,
+    rangeStart: rangeStart ?? this.rangeStart,
+    rangeEnd: rangeEnd ?? this.rangeEnd,
+    title: title ?? this.title,
+    summary: summary ?? this.summary,
+    adviceJson: adviceJson ?? this.adviceJson,
+    markdown: markdown ?? this.markdown,
+    generatedAt: generatedAt ?? this.generatedAt,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  Report copyWithCompanion(ReportsCompanion data) {
+    return Report(
+      id: data.id.present ? data.id.value : this.id,
+      reportType: data.reportType.present
+          ? data.reportType.value
+          : this.reportType,
+      rangeStart: data.rangeStart.present
+          ? data.rangeStart.value
+          : this.rangeStart,
+      rangeEnd: data.rangeEnd.present ? data.rangeEnd.value : this.rangeEnd,
+      title: data.title.present ? data.title.value : this.title,
+      summary: data.summary.present ? data.summary.value : this.summary,
+      adviceJson: data.adviceJson.present
+          ? data.adviceJson.value
+          : this.adviceJson,
+      markdown: data.markdown.present ? data.markdown.value : this.markdown,
+      generatedAt: data.generatedAt.present
+          ? data.generatedAt.value
+          : this.generatedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Report(')
+          ..write('id: $id, ')
+          ..write('reportType: $reportType, ')
+          ..write('rangeStart: $rangeStart, ')
+          ..write('rangeEnd: $rangeEnd, ')
+          ..write('title: $title, ')
+          ..write('summary: $summary, ')
+          ..write('adviceJson: $adviceJson, ')
+          ..write('markdown: $markdown, ')
+          ..write('generatedAt: $generatedAt, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    reportType,
+    rangeStart,
+    rangeEnd,
+    title,
+    summary,
+    adviceJson,
+    markdown,
+    generatedAt,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Report &&
+          other.id == this.id &&
+          other.reportType == this.reportType &&
+          other.rangeStart == this.rangeStart &&
+          other.rangeEnd == this.rangeEnd &&
+          other.title == this.title &&
+          other.summary == this.summary &&
+          other.adviceJson == this.adviceJson &&
+          other.markdown == this.markdown &&
+          other.generatedAt == this.generatedAt &&
+          other.createdAt == this.createdAt);
+}
+
+class ReportsCompanion extends UpdateCompanion<Report> {
+  final Value<String> id;
+  final Value<String> reportType;
+  final Value<DateTime> rangeStart;
+  final Value<DateTime> rangeEnd;
+  final Value<String> title;
+  final Value<String> summary;
+  final Value<String> adviceJson;
+  final Value<String> markdown;
+  final Value<DateTime> generatedAt;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const ReportsCompanion({
+    this.id = const Value.absent(),
+    this.reportType = const Value.absent(),
+    this.rangeStart = const Value.absent(),
+    this.rangeEnd = const Value.absent(),
+    this.title = const Value.absent(),
+    this.summary = const Value.absent(),
+    this.adviceJson = const Value.absent(),
+    this.markdown = const Value.absent(),
+    this.generatedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReportsCompanion.insert({
+    required String id,
+    required String reportType,
+    required DateTime rangeStart,
+    required DateTime rangeEnd,
+    required String title,
+    required String summary,
+    required String adviceJson,
+    required String markdown,
+    required DateTime generatedAt,
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       reportType = Value(reportType),
+       rangeStart = Value(rangeStart),
+       rangeEnd = Value(rangeEnd),
+       title = Value(title),
+       summary = Value(summary),
+       adviceJson = Value(adviceJson),
+       markdown = Value(markdown),
+       generatedAt = Value(generatedAt),
+       createdAt = Value(createdAt);
+  static Insertable<Report> custom({
+    Expression<String>? id,
+    Expression<String>? reportType,
+    Expression<DateTime>? rangeStart,
+    Expression<DateTime>? rangeEnd,
+    Expression<String>? title,
+    Expression<String>? summary,
+    Expression<String>? adviceJson,
+    Expression<String>? markdown,
+    Expression<DateTime>? generatedAt,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (reportType != null) 'report_type': reportType,
+      if (rangeStart != null) 'range_start': rangeStart,
+      if (rangeEnd != null) 'range_end': rangeEnd,
+      if (title != null) 'title': title,
+      if (summary != null) 'summary': summary,
+      if (adviceJson != null) 'advice_json': adviceJson,
+      if (markdown != null) 'markdown': markdown,
+      if (generatedAt != null) 'generated_at': generatedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReportsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? reportType,
+    Value<DateTime>? rangeStart,
+    Value<DateTime>? rangeEnd,
+    Value<String>? title,
+    Value<String>? summary,
+    Value<String>? adviceJson,
+    Value<String>? markdown,
+    Value<DateTime>? generatedAt,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return ReportsCompanion(
+      id: id ?? this.id,
+      reportType: reportType ?? this.reportType,
+      rangeStart: rangeStart ?? this.rangeStart,
+      rangeEnd: rangeEnd ?? this.rangeEnd,
+      title: title ?? this.title,
+      summary: summary ?? this.summary,
+      adviceJson: adviceJson ?? this.adviceJson,
+      markdown: markdown ?? this.markdown,
+      generatedAt: generatedAt ?? this.generatedAt,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (reportType.present) {
+      map['report_type'] = Variable<String>(reportType.value);
+    }
+    if (rangeStart.present) {
+      map['range_start'] = Variable<DateTime>(rangeStart.value);
+    }
+    if (rangeEnd.present) {
+      map['range_end'] = Variable<DateTime>(rangeEnd.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (summary.present) {
+      map['summary'] = Variable<String>(summary.value);
+    }
+    if (adviceJson.present) {
+      map['advice_json'] = Variable<String>(adviceJson.value);
+    }
+    if (markdown.present) {
+      map['markdown'] = Variable<String>(markdown.value);
+    }
+    if (generatedAt.present) {
+      map['generated_at'] = Variable<DateTime>(generatedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReportsCompanion(')
+          ..write('id: $id, ')
+          ..write('reportType: $reportType, ')
+          ..write('rangeStart: $rangeStart, ')
+          ..write('rangeEnd: $rangeEnd, ')
+          ..write('title: $title, ')
+          ..write('summary: $summary, ')
+          ..write('adviceJson: $adviceJson, ')
+          ..write('markdown: $markdown, ')
+          ..write('generatedAt: $generatedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $HealthEventsTable healthEvents = $HealthEventsTable(this);
   late final $AttachmentsTable attachments = $AttachmentsTable(this);
+  late final $ReportsTable reports = $ReportsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -908,6 +1525,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     healthEvents,
     attachments,
+    reports,
   ];
 }
 
@@ -1597,6 +2215,303 @@ typedef $$AttachmentsTableProcessedTableManager =
       Attachment,
       PrefetchHooks Function({bool healthEventId})
     >;
+typedef $$ReportsTableCreateCompanionBuilder =
+    ReportsCompanion Function({
+      required String id,
+      required String reportType,
+      required DateTime rangeStart,
+      required DateTime rangeEnd,
+      required String title,
+      required String summary,
+      required String adviceJson,
+      required String markdown,
+      required DateTime generatedAt,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$ReportsTableUpdateCompanionBuilder =
+    ReportsCompanion Function({
+      Value<String> id,
+      Value<String> reportType,
+      Value<DateTime> rangeStart,
+      Value<DateTime> rangeEnd,
+      Value<String> title,
+      Value<String> summary,
+      Value<String> adviceJson,
+      Value<String> markdown,
+      Value<DateTime> generatedAt,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$ReportsTableFilterComposer
+    extends Composer<_$AppDatabase, $ReportsTable> {
+  $$ReportsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reportType => $composableBuilder(
+    column: $table.reportType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get rangeStart => $composableBuilder(
+    column: $table.rangeStart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get rangeEnd => $composableBuilder(
+    column: $table.rangeEnd,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get summary => $composableBuilder(
+    column: $table.summary,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get adviceJson => $composableBuilder(
+    column: $table.adviceJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get markdown => $composableBuilder(
+    column: $table.markdown,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get generatedAt => $composableBuilder(
+    column: $table.generatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ReportsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ReportsTable> {
+  $$ReportsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reportType => $composableBuilder(
+    column: $table.reportType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get rangeStart => $composableBuilder(
+    column: $table.rangeStart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get rangeEnd => $composableBuilder(
+    column: $table.rangeEnd,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get summary => $composableBuilder(
+    column: $table.summary,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get adviceJson => $composableBuilder(
+    column: $table.adviceJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get markdown => $composableBuilder(
+    column: $table.markdown,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get generatedAt => $composableBuilder(
+    column: $table.generatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ReportsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ReportsTable> {
+  $$ReportsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get reportType => $composableBuilder(
+    column: $table.reportType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get rangeStart => $composableBuilder(
+    column: $table.rangeStart,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get rangeEnd =>
+      $composableBuilder(column: $table.rangeEnd, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get summary =>
+      $composableBuilder(column: $table.summary, builder: (column) => column);
+
+  GeneratedColumn<String> get adviceJson => $composableBuilder(
+    column: $table.adviceJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get markdown =>
+      $composableBuilder(column: $table.markdown, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get generatedAt => $composableBuilder(
+    column: $table.generatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$ReportsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ReportsTable,
+          Report,
+          $$ReportsTableFilterComposer,
+          $$ReportsTableOrderingComposer,
+          $$ReportsTableAnnotationComposer,
+          $$ReportsTableCreateCompanionBuilder,
+          $$ReportsTableUpdateCompanionBuilder,
+          (Report, BaseReferences<_$AppDatabase, $ReportsTable, Report>),
+          Report,
+          PrefetchHooks Function()
+        > {
+  $$ReportsTableTableManager(_$AppDatabase db, $ReportsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReportsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReportsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReportsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> reportType = const Value.absent(),
+                Value<DateTime> rangeStart = const Value.absent(),
+                Value<DateTime> rangeEnd = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> summary = const Value.absent(),
+                Value<String> adviceJson = const Value.absent(),
+                Value<String> markdown = const Value.absent(),
+                Value<DateTime> generatedAt = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReportsCompanion(
+                id: id,
+                reportType: reportType,
+                rangeStart: rangeStart,
+                rangeEnd: rangeEnd,
+                title: title,
+                summary: summary,
+                adviceJson: adviceJson,
+                markdown: markdown,
+                generatedAt: generatedAt,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String reportType,
+                required DateTime rangeStart,
+                required DateTime rangeEnd,
+                required String title,
+                required String summary,
+                required String adviceJson,
+                required String markdown,
+                required DateTime generatedAt,
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ReportsCompanion.insert(
+                id: id,
+                reportType: reportType,
+                rangeStart: rangeStart,
+                rangeEnd: rangeEnd,
+                title: title,
+                summary: summary,
+                adviceJson: adviceJson,
+                markdown: markdown,
+                generatedAt: generatedAt,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ReportsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ReportsTable,
+      Report,
+      $$ReportsTableFilterComposer,
+      $$ReportsTableOrderingComposer,
+      $$ReportsTableAnnotationComposer,
+      $$ReportsTableCreateCompanionBuilder,
+      $$ReportsTableUpdateCompanionBuilder,
+      (Report, BaseReferences<_$AppDatabase, $ReportsTable, Report>),
+      Report,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -1605,4 +2520,6 @@ class $AppDatabaseManager {
       $$HealthEventsTableTableManager(_db, _db.healthEvents);
   $$AttachmentsTableTableManager get attachments =>
       $$AttachmentsTableTableManager(_db, _db.attachments);
+  $$ReportsTableTableManager get reports =>
+      $$ReportsTableTableManager(_db, _db.reports);
 }

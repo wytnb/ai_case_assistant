@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:ai_case_assistant/features/health_record/data/local/tables/attachments.dart';
 import 'package:ai_case_assistant/features/health_record/data/local/tables/health_events.dart';
+import 'package:ai_case_assistant/features/report/data/local/tables/reports.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path/path.dart' as path;
@@ -9,12 +10,21 @@ import 'package:path_provider/path_provider.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: <Type>[HealthEvents, Attachments])
+@DriftDatabase(tables: <Type>[HealthEvents, Attachments, Reports])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (Migrator migrator, int from, int to) async {
+      if (from < 2) {
+        await migrator.createTable(reports);
+      }
+    },
+  );
 
   Future<List<HealthEvent>> getAllHealthEvents() {
     return (select(healthEvents)..orderBy(<OrderingTerm Function(HealthEvents)>[
@@ -27,6 +37,22 @@ class AppDatabase extends _$AppDatabase {
     return (select(
       healthEvents,
     )..where((HealthEvents table) => table.id.equals(id))).getSingleOrNull();
+  }
+
+  Future<List<HealthEvent>> getHealthEventsByRange({
+    required DateTime rangeStart,
+    required DateTime rangeEnd,
+  }) {
+    return (select(healthEvents)
+          ..where(
+            (HealthEvents table) =>
+                table.eventTime.isBiggerOrEqualValue(rangeStart) &
+                table.eventTime.isSmallerOrEqualValue(rangeEnd),
+          )
+          ..orderBy(<OrderingTerm Function(HealthEvents)>[
+            (HealthEvents table) => OrderingTerm.desc(table.eventTime),
+          ]))
+        .get();
   }
 
   Future<void> insertHealthEvent(HealthEventsCompanion companion) async {
@@ -46,6 +72,23 @@ class AppDatabase extends _$AppDatabase {
             (Attachments table) => OrderingTerm.asc(table.createdAt),
           ]))
         .get();
+  }
+
+  Future<void> insertReport(ReportsCompanion companion) async {
+    await into(reports).insert(companion);
+  }
+
+  Future<List<Report>> getAllReports() {
+    return (select(reports)..orderBy(<OrderingTerm Function(Reports)>[
+          (Reports table) => OrderingTerm.desc(table.generatedAt),
+        ]))
+        .get();
+  }
+
+  Future<Report?> getReportById(String id) {
+    return (select(
+      reports,
+    )..where((Reports table) => table.id.equals(id))).getSingleOrNull();
   }
 }
 

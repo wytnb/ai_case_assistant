@@ -2,6 +2,7 @@ import 'package:ai_case_assistant/app/presentation/pages/home_page.dart';
 import 'package:ai_case_assistant/features/health_record/presentation/pages/create_health_record_page.dart';
 import 'package:ai_case_assistant/features/health_record/presentation/pages/health_record_detail_page.dart';
 import 'package:ai_case_assistant/features/health_record/presentation/pages/health_record_list_page.dart';
+import 'package:ai_case_assistant/features/report/presentation/pages/report_detail_page.dart';
 import 'package:ai_case_assistant/features/report/presentation/pages/report_list_page.dart';
 import 'package:go_router/go_router.dart';
 
@@ -24,6 +25,11 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/reports',
       builder: (context, state) => const ReportListPage(),
+    ),
+    GoRoute(
+      path: '/reports/:id',
+      builder: (context, state) =>
+          ReportDetailPage(reportId: state.pathParameters['id']!),
     ),
   ],
 );
