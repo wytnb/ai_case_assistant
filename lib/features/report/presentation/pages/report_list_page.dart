@@ -9,22 +9,24 @@ class ReportListPage extends ConsumerWidget {
   const ReportListPage({super.key});
 
   static final DateFormat _dateFormatter = DateFormat('yyyy-MM-dd HH:mm');
+  static final DateFormat _dayFormatter = DateFormat('yyyy-MM-dd');
 
-  Future<void> _generateWeeklyReport(
+  Future<void> _generateReport(
     BuildContext context,
     WidgetRef ref,
+    ReportGenerationType reportType,
   ) async {
     try {
       await ref
           .read(generateWeeklyReportControllerProvider.notifier)
-          .generateWeeklyReport();
+          .generateReport(reportType);
       if (!context.mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('周报已生成并保存。')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${reportType.displayName}已生成并保存。')),
+      );
     } catch (_) {
       if (!context.mounted) {
         return;
@@ -42,6 +44,9 @@ class ReportListPage extends ConsumerWidget {
     final AsyncValue<void> generateState = ref.watch(
       generateWeeklyReportControllerProvider,
     );
+    final ReportGenerationType selectedType = ref.watch(
+      selectedReportTypeProvider,
+    );
     final bool isGenerating = generateState.isLoading;
 
     return Scaffold(
@@ -49,13 +54,37 @@ class ReportListPage extends ConsumerWidget {
       body: Column(
         children: <Widget>[
           Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SegmentedButton<ReportGenerationType>(
+                segments: ReportGenerationType.values
+                    .map(
+                      (ReportGenerationType type) =>
+                          ButtonSegment<ReportGenerationType>(
+                            value: type,
+                            label: Text(type.displayName),
+                          ),
+                    )
+                    .toList(),
+                selected: <ReportGenerationType>{selectedType},
+                onSelectionChanged: isGenerating
+                    ? null
+                    : (Set<ReportGenerationType> selection) {
+                        ref.read(selectedReportTypeProvider.notifier).state =
+                            selection.first;
+                      },
+              ),
+            ),
+          ),
+          Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: isGenerating
                     ? null
-                    : () => _generateWeeklyReport(context, ref),
+                    : () => _generateReport(context, ref, selectedType),
                 icon: isGenerating
                     ? const SizedBox(
                         width: 18,
@@ -63,15 +92,26 @@ class ReportListPage extends ConsumerWidget {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.auto_awesome_outlined),
-                label: Text(isGenerating ? '生成中…' : '生成近 7 天周报'),
+                label: Text(
+                  isGenerating
+                      ? '生成中…'
+                      : '生成${_buildGenerateButtonLabel(selectedType)}',
+                ),
               ),
             ),
           ),
           Expanded(
             child: reportsAsync.when(
               data: (List<Report> reports) {
-                if (reports.isEmpty) {
-                  return const _EmptyState();
+                final List<Report> filteredReports = reports
+                    .where(
+                      (Report report) =>
+                          report.reportType == selectedType.reportType,
+                    )
+                    .toList();
+
+                if (filteredReports.isEmpty) {
+                  return _EmptyState(reportType: selectedType);
                 }
 
                 return RefreshIndicator(
@@ -81,10 +121,13 @@ class ReportListPage extends ConsumerWidget {
                   },
                   child: ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                    itemCount: reports.length,
+                    itemCount: filteredReports.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (BuildContext context, int index) {
-                      final Report report = reports[index];
+                      final Report report = filteredReports[index];
+                      final String reportTypeLabel = _buildReportTypeLabel(
+                        report.reportType,
+                      );
                       return Card(
                         child: ListTile(
                           title: Text(report.title),
@@ -92,10 +135,10 @@ class ReportListPage extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
                               const SizedBox(height: 8),
+                              Text('类型：$reportTypeLabel'),
+                              const SizedBox(height: 4),
                               Text(
-                                report.summary,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                                '范围：${_dayFormatter.format(report.rangeStart)} ~ ${_dayFormatter.format(report.rangeEnd)}',
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -121,10 +164,36 @@ class ReportListPage extends ConsumerWidget {
       ),
     );
   }
+
+  String _buildGenerateButtonLabel(ReportGenerationType reportType) {
+    switch (reportType) {
+      case ReportGenerationType.week:
+        return '近 7 天周报';
+      case ReportGenerationType.month:
+        return '近 30 天月报';
+      case ReportGenerationType.quarter:
+        return '近 90 天季报';
+    }
+  }
+
+  String _buildReportTypeLabel(String reportType) {
+    switch (reportType) {
+      case 'week':
+        return '周报';
+      case 'month':
+        return '月报';
+      case 'quarter':
+        return '季报';
+      default:
+        return reportType;
+    }
+  }
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  const _EmptyState({required this.reportType});
+
+  final ReportGenerationType reportType;
 
   @override
   Widget build(BuildContext context) {
@@ -137,7 +206,7 @@ class _EmptyState extends StatelessWidget {
             Text('还没有报告', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 12),
             Text(
-              '点击上方按钮即可手动生成近 7 天周报。',
+              '当前没有${reportType.displayName}，你可以点击上方按钮手动生成。',
               style: Theme.of(context).textTheme.bodyLarge,
               textAlign: TextAlign.center,
             ),

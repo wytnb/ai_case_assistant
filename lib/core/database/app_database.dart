@@ -78,11 +78,39 @@ class AppDatabase extends _$AppDatabase {
     await into(reports).insert(companion);
   }
 
+  Future<void> updateReportById(String id, ReportsCompanion companion) async {
+    await (update(
+      reports,
+    )..where((Reports table) => table.id.equals(id))).write(companion);
+  }
+
   Future<List<Report>> getAllReports() {
     return (select(reports)..orderBy(<OrderingTerm Function(Reports)>[
           (Reports table) => OrderingTerm.desc(table.generatedAt),
         ]))
         .get();
+  }
+
+  Future<List<Report>> getReportsByScope({
+    required String reportType,
+    required DateTime rangeStart,
+    required DateTime rangeEnd,
+  }) {
+    return (select(reports)
+          ..where(
+            (Reports table) =>
+                table.reportType.equals(reportType) &
+                table.rangeStart.equals(rangeStart) &
+                table.rangeEnd.equals(rangeEnd),
+          )
+          ..orderBy(<OrderingTerm Function(Reports)>[
+            (Reports table) => OrderingTerm.desc(table.generatedAt),
+          ]))
+        .get();
+  }
+
+  Future<void> deleteReportById(String id) async {
+    await (delete(reports)..where((Reports table) => table.id.equals(id))).go();
   }
 
   Future<Report?> getReportById(String id) {

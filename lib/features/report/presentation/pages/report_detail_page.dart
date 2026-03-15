@@ -36,7 +36,10 @@ class ReportDetailPage extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             children: <Widget>[
               _DetailSection(title: '标题', child: Text(report.title)),
-              _DetailSection(title: '报告类型', child: Text(report.reportType)),
+              _DetailSection(
+                title: '报告类型',
+                child: Text(_buildReportTypeLabel(report.reportType)),
+              ),
               _DetailSection(
                 title: '时间范围',
                 child: Text(
@@ -83,6 +86,19 @@ class ReportDetailPage extends ConsumerWidget {
           .toList();
     } catch (_) {
       return const <String>[];
+    }
+  }
+
+  String _buildReportTypeLabel(String reportType) {
+    switch (reportType) {
+      case 'week':
+        return '周报';
+      case 'month':
+        return '月报';
+      case 'quarter':
+        return '季报';
+      default:
+        return reportType;
     }
   }
 }

@@ -10,6 +10,27 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+enum ReportGenerationType {
+  week(reportType: 'week', displayName: '周报', rangeDays: 7),
+  month(reportType: 'month', displayName: '月报', rangeDays: 30),
+  quarter(reportType: 'quarter', displayName: '季报', rangeDays: 90);
+
+  const ReportGenerationType({
+    required this.reportType,
+    required this.displayName,
+    required this.rangeDays,
+  });
+
+  final String reportType;
+  final String displayName;
+  final int rangeDays;
+}
+
+final StateProvider<ReportGenerationType> selectedReportTypeProvider =
+    StateProvider<ReportGenerationType>((Ref ref) {
+      return ReportGenerationType.week;
+    });
+
 final Provider<ReportService> reportServiceProvider = Provider<ReportService>((
   Ref ref,
 ) {
@@ -47,27 +68,16 @@ class ReportService {
   final AiReportService _aiReportService;
   static const Uuid _uuid = Uuid();
 
-  Future<String> generateWeeklyReport() async {
+  Future<String> generateReport(ReportGenerationType reportType) async {
     try {
       final DateTime now = DateTime.now();
-      final DateTime rangeStart = DateTime(
-        now.year,
-        now.month,
-        now.day,
-      ).subtract(const Duration(days: 6));
-      final DateTime rangeEnd = DateTime(
-        now.year,
-        now.month,
-        now.day,
-        23,
-        59,
-        59,
-        999,
-        999,
-      );
+      final _ReportRange reportRange = _buildReportRange(now, reportType);
 
       final List<HealthEvent> sourceEvents = await _database
-          .getHealthEventsByRange(rangeStart: rangeStart, rangeEnd: rangeEnd);
+          .getHealthEventsByRange(
+            rangeStart: reportRange.rangeStart,
+            rangeEnd: reportRange.rangeEnd,
+          );
 
       final List<AiReportEvent> aiEvents = sourceEvents
           .map(
@@ -86,32 +96,65 @@ class ReportService {
           .toList();
 
       final AiReportResult generated = await _aiReportService.generateReport(
-        reportType: 'week',
-        rangeStart: rangeStart,
-        rangeEnd: rangeEnd,
+        reportType: reportType.reportType,
+        rangeStart: reportRange.rangeStart,
+        rangeEnd: reportRange.rangeEnd,
         events: aiEvents,
       );
 
-      final String reportId = _uuid.v4();
       final DateTime generatedAt = DateTime.now();
+      final List<Report> scopedReports = await _database.getReportsByScope(
+        reportType: reportType.reportType,
+        rangeStart: reportRange.rangeStart,
+        rangeEnd: reportRange.rangeEnd,
+      );
+      final Report? existingReport = scopedReports.isEmpty
+          ? null
+          : scopedReports.first;
+      final String reportId = existingReport?.id ?? _uuid.v4();
       debugPrint(
-        '[REPORT] insertReport start: id=$reportId, reportType=week, rangeStart=${rangeStart.toIso8601String()}, '
-        'rangeEnd=${rangeEnd.toIso8601String()}, generatedAt=${generatedAt.toIso8601String()}',
+        '[REPORT] insertReport start: id=$reportId, reportType=${reportType.reportType}, '
+        'rangeStart=${reportRange.rangeStart.toIso8601String()}, '
+        'rangeEnd=${reportRange.rangeEnd.toIso8601String()}, '
+        'generatedAt=${generatedAt.toIso8601String()}, '
+        'overwrite=${existingReport != null}, '
+        'duplicateCount=${scopedReports.length}',
       );
-      await _database.insertReport(
-        ReportsCompanion(
-          id: Value<String>(reportId),
-          reportType: const Value<String>('week'),
-          rangeStart: Value<DateTime>(rangeStart),
-          rangeEnd: Value<DateTime>(rangeEnd),
-          title: Value<String>(generated.title),
-          summary: Value<String>(generated.summary),
-          adviceJson: Value<String>(jsonEncode(generated.advice)),
-          markdown: Value<String>(generated.markdown),
-          generatedAt: Value<DateTime>(generatedAt),
-          createdAt: Value<DateTime>(generatedAt),
-        ),
-      );
+
+      if (existingReport == null) {
+        await _database.insertReport(
+          ReportsCompanion(
+            id: Value<String>(reportId),
+            reportType: Value<String>(reportType.reportType),
+            rangeStart: Value<DateTime>(reportRange.rangeStart),
+            rangeEnd: Value<DateTime>(reportRange.rangeEnd),
+            title: Value<String>(generated.title),
+            summary: Value<String>(generated.summary),
+            adviceJson: Value<String>(jsonEncode(generated.advice)),
+            markdown: Value<String>(generated.markdown),
+            generatedAt: Value<DateTime>(generatedAt),
+            createdAt: Value<DateTime>(generatedAt),
+          ),
+        );
+      } else {
+        await _database.updateReportById(
+          reportId,
+          ReportsCompanion(
+            reportType: Value<String>(reportType.reportType),
+            rangeStart: Value<DateTime>(reportRange.rangeStart),
+            rangeEnd: Value<DateTime>(reportRange.rangeEnd),
+            title: Value<String>(generated.title),
+            summary: Value<String>(generated.summary),
+            adviceJson: Value<String>(jsonEncode(generated.advice)),
+            markdown: Value<String>(generated.markdown),
+            generatedAt: Value<DateTime>(generatedAt),
+            createdAt: Value<DateTime>(existingReport.createdAt),
+          ),
+        );
+        for (final Report duplicatedReport in scopedReports.skip(1)) {
+          await _database.deleteReportById(duplicatedReport.id);
+        }
+      }
       debugPrint('[REPORT] insertReport success: id=$reportId');
 
       return reportId;
@@ -121,6 +164,10 @@ class ReportService {
       );
       rethrow;
     }
+  }
+
+  Future<String> generateWeeklyReport() async {
+    return generateReport(ReportGenerationType.week);
   }
 
   Future<List<Report>> getAllReports() {
@@ -151,19 +198,42 @@ class ReportService {
 
     return '${value.substring(0, maxLength)}...';
   }
+
+  _ReportRange _buildReportRange(
+    DateTime now,
+    ReportGenerationType reportType,
+  ) {
+    final DateTime rangeStart = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(Duration(days: reportType.rangeDays - 1));
+    final DateTime rangeEnd = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      23,
+      59,
+      59,
+      999,
+      999,
+    );
+
+    return _ReportRange(rangeStart: rangeStart, rangeEnd: rangeEnd);
+  }
 }
 
 class GenerateWeeklyReportController extends AutoDisposeAsyncNotifier<void> {
   @override
   FutureOr<void> build() {}
 
-  Future<String> generateWeeklyReport() async {
+  Future<String> generateReport(ReportGenerationType reportType) async {
     state = const AsyncLoading<void>();
 
     try {
       final String reportId = await ref
           .read(reportServiceProvider)
-          .generateWeeklyReport();
+          .generateReport(reportType);
       state = const AsyncData<void>(null);
       ref.invalidate(reportListProvider);
       ref.invalidate(reportDetailProvider(reportId));
@@ -174,4 +244,15 @@ class GenerateWeeklyReportController extends AutoDisposeAsyncNotifier<void> {
       rethrow;
     }
   }
+
+  Future<String> generateWeeklyReport() async {
+    return generateReport(ReportGenerationType.week);
+  }
+}
+
+class _ReportRange {
+  const _ReportRange({required this.rangeStart, required this.rangeEnd});
+
+  final DateTime rangeStart;
+  final DateTime rangeEnd;
 }
