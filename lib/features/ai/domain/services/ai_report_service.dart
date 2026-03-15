@@ -1,7 +1,8 @@
 class AiReportEvent {
   const AiReportEvent({
     required this.id,
-    required this.eventTime,
+    required this.eventStartTime,
+    required this.eventEndTime,
     required this.sourceType,
     this.rawText,
     this.symptomSummary,
@@ -9,7 +10,8 @@ class AiReportEvent {
   });
 
   final String id;
-  final DateTime eventTime;
+  final DateTime eventStartTime;
+  final DateTime eventEndTime;
   final String sourceType;
   final String? rawText;
   final String? symptomSummary;

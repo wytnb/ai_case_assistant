@@ -6,7 +6,6 @@ class RemoteAiExtractService implements AiExtractService {
   RemoteAiExtractService({required Dio dio}) : _dio = dio;
 
   static const int _summaryMaxLength = 36;
-  static const int _notesPreviewMaxLength = 60;
   final Dio _dio;
 
   @override
@@ -39,14 +38,25 @@ class RemoteAiExtractService implements AiExtractService {
       final String symptomSummary =
           remoteSymptomSummary ??
           _buildFallbackSymptomSummary(normalizedRawText);
-      final String notes =
-          _readValidText(responseData['notes']) ??
-          _buildFallbackNotes(
-            rawText: normalizedRawText,
-            symptomSummary: symptomSummary,
-          );
+      final DateTime eventStartTime = _readRequiredDateTime(
+        responseData['eventStartTime'],
+      );
+      final DateTime eventEndTime = _readRequiredDateTime(
+        responseData['eventEndTime'],
+      );
+      if (eventStartTime.isAfter(eventEndTime)) {
+        throw const AiExtractException(
+          type: AiExtractExceptionType.invalidResponsePayload,
+          message: '提取结果无效，请稍后重试。',
+        );
+      }
 
-      return AiExtractResult(symptomSummary: symptomSummary, notes: notes);
+      return AiExtractResult(
+        symptomSummary: symptomSummary,
+        notes: _readValidText(responseData['notes']),
+        eventStartTime: eventStartTime,
+        eventEndTime: eventEndTime,
+      );
     } on AiExtractException {
       rethrow;
     } on DioException catch (exception) {
@@ -72,23 +82,42 @@ class RemoteAiExtractService implements AiExtractService {
     return normalizedValue;
   }
 
+  DateTime _readRequiredDateTime(dynamic value) {
+    if (value is! String) {
+      throw const AiExtractException(
+        type: AiExtractExceptionType.invalidResponsePayload,
+        message: '提取结果无效，请稍后重试。',
+      );
+    }
+
+    final String normalizedValue = value.trim();
+    if (normalizedValue.isEmpty) {
+      throw const AiExtractException(
+        type: AiExtractExceptionType.invalidResponsePayload,
+        message: '提取结果无效，请稍后重试。',
+      );
+    }
+
+    final DateTime? parsed = DateTime.tryParse(normalizedValue);
+    if (parsed == null) {
+      throw const AiExtractException(
+        type: AiExtractExceptionType.invalidResponsePayload,
+        message: '提取结果无效，请稍后重试。',
+      );
+    }
+
+    return parsed;
+  }
+
   String _buildFallbackSymptomSummary(String rawText) {
     final String firstSegment = rawText
-        .split(RegExp(r'[。！？!?；;]+'))
+        .split(RegExp(r'[。！？?!]+'))
         .map((String segment) => segment.trim())
         .firstWhere(
           (String segment) => segment.isNotEmpty,
           orElse: () => rawText,
         );
     return _truncate(firstSegment, _summaryMaxLength);
-  }
-
-  String _buildFallbackNotes({
-    required String rawText,
-    required String symptomSummary,
-  }) {
-    final String preview = _truncate(rawText, _notesPreviewMaxLength);
-    return 'AI 提取已完成。当前摘要：$symptomSummary。原始描述已保留：$preview';
   }
 
   String _truncate(String value, int maxLength) {

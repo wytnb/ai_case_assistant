@@ -1,3 +1,5 @@
+// ignore_for_file: experimental_member_use
+
 import 'dart:io';
 
 import 'package:ai_case_assistant/features/health_record/data/local/tables/attachments.dart';
@@ -15,7 +17,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -23,12 +25,34 @@ class AppDatabase extends _$AppDatabase {
       if (from < 2) {
         await migrator.createTable(reports);
       }
+      if (from < 3) {
+        await migrator.alterTable(
+          TableMigration(
+            healthEvents,
+            newColumns: <GeneratedColumn<Object>>[
+              healthEvents.eventStartTime,
+              healthEvents.eventEndTime,
+            ],
+            columnTransformer: <GeneratedColumn<Object>, Expression<Object>>{
+              healthEvents.eventStartTime: const CustomExpression<DateTime>(
+                'event_time',
+              ),
+              healthEvents.eventEndTime: const CustomExpression<DateTime>(
+                'event_time',
+              ),
+              healthEvents.createdAt: const CustomExpression<DateTime>(
+                'event_time',
+              ),
+            },
+          ),
+        );
+      }
     },
   );
 
   Future<List<HealthEvent>> getAllHealthEvents() {
     return (select(healthEvents)..orderBy(<OrderingTerm Function(HealthEvents)>[
-          (HealthEvents table) => OrderingTerm.desc(table.eventTime),
+          (HealthEvents table) => OrderingTerm.desc(table.eventEndTime),
         ]))
         .get();
   }
@@ -46,11 +70,11 @@ class AppDatabase extends _$AppDatabase {
     return (select(healthEvents)
           ..where(
             (HealthEvents table) =>
-                table.eventTime.isBiggerOrEqualValue(rangeStart) &
-                table.eventTime.isSmallerOrEqualValue(rangeEnd),
+                table.eventEndTime.isBiggerOrEqualValue(rangeStart) &
+                table.eventEndTime.isSmallerOrEqualValue(rangeEnd),
           )
           ..orderBy(<OrderingTerm Function(HealthEvents)>[
-            (HealthEvents table) => OrderingTerm.desc(table.eventTime),
+            (HealthEvents table) => OrderingTerm.desc(table.eventEndTime),
           ]))
         .get();
   }

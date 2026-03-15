@@ -140,6 +140,12 @@ fvm flutter run --dart-define=AI_API_BASE_URL=https://your-worker.example.com
 fvm flutter run --dart-define=USE_MOCK_AI_EXTRACT=true
 ```
 
+运行真实 AI 接口集成测试：
+
+```bash
+fvm flutter test test/features/ai/real_ai_api_test.dart --dart-define=RUN_REAL_AI_API_TESTS=true --dart-define=AI_API_BASE_URL=https://your-worker.example.com
+```
+
 ## 当前实现细节说明
 
 - 首页当前仍是静态入口页，不展示最近记录摘要。

@@ -60,7 +60,7 @@ class HealthRecordListPage extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         const SizedBox(height: 8),
-                        Text(_dateFormatter.format(healthRecord.eventTime)),
+                        Text(_buildTimeRange(healthRecord)),
                         const SizedBox(height: 4),
                         Text('来源：${healthRecord.sourceType}'),
                       ],
@@ -110,6 +110,16 @@ class HealthRecordListPage extends ConsumerWidget {
     }
 
     return '${fallback.substring(0, 40)}...';
+  }
+
+  String _buildTimeRange(HealthEvent healthRecord) {
+    final String startText = _dateFormatter.format(healthRecord.eventStartTime);
+    final String endText = _dateFormatter.format(healthRecord.eventEndTime);
+    if (healthRecord.eventStartTime == healthRecord.eventEndTime) {
+      return startText;
+    }
+
+    return '$startText - $endText';
   }
 }
 

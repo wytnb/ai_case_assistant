@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:ai_case_assistant/features/ai/domain/exceptions/ai_extract_exception.dart';
 import 'package:ai_case_assistant/features/health_record/presentation/providers/health_record_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -69,14 +70,14 @@ class _CreateHealthRecordPageState
       }
 
       context.pop(true);
-    } catch (_) {
+    } catch (error) {
       if (!mounted) {
         return;
       }
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('保存失败，请稍后重试。')));
+      ).showSnackBar(SnackBar(content: Text(_buildErrorMessage(error))));
     }
   }
 
@@ -152,12 +153,24 @@ class _CreateHealthRecordPageState
             ),
             if (createState.hasError) ...<Widget>[
               const SizedBox(height: 12),
-              const Text('保存失败，请稍后重试。', style: TextStyle(color: Colors.red)),
+              Text(
+                _buildErrorMessage(createState.error),
+                style: const TextStyle(color: Colors.red),
+              ),
             ],
           ],
         ),
       ),
     );
+  }
+
+  String _buildErrorMessage(Object? error) {
+    if (error is AiExtractException &&
+        error.type == AiExtractExceptionType.invalidResponsePayload) {
+      return 'AI 返回的事件时间无效，保存已取消，请稍后重试。';
+    }
+
+    return '保存失败，请稍后重试。';
   }
 }
 

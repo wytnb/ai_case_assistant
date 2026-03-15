@@ -55,6 +55,7 @@ dev_dependencies:
   freezed: ^3.2.2
   json_serializable: ^6.11.1
   drift_dev: ^2.28.1
+  sqlite3: ^2.9.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

@@ -6,7 +6,9 @@ class HealthEvents extends Table {
 
   TextColumn get id => text()();
 
-  DateTimeColumn get eventTime => dateTime()();
+  DateTimeColumn get eventStartTime => dateTime()();
+
+  DateTimeColumn get eventEndTime => dateTime()();
 
   TextColumn get sourceType => text()();
 

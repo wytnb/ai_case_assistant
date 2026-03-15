@@ -134,7 +134,8 @@ class RemoteAiReportService implements AiReportService {
   Map<String, dynamic> _toEventPayload(AiReportEvent event) {
     return <String, dynamic>{
       'id': event.id,
-      'eventTime': event.eventTime.toIso8601String(),
+      'eventStartTime': event.eventStartTime.toIso8601String(),
+      'eventEndTime': event.eventEndTime.toIso8601String(),
       'sourceType': event.sourceType,
       'rawText': event.rawText,
       'symptomSummary': event.symptomSummary,

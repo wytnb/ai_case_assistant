@@ -107,7 +107,8 @@ class HealthRecordService {
         await _database.insertHealthEvent(
           HealthEventsCompanion(
             id: Value<String>(healthEventId),
-            eventTime: Value<DateTime>(now),
+            eventStartTime: Value<DateTime>(extractResult.eventStartTime),
+            eventEndTime: Value<DateTime>(extractResult.eventEndTime),
             sourceType: const Value<String>('text'),
             rawText: Value<String>(normalizedRawText),
             symptomSummary: normalizedSymptomSummary == null
