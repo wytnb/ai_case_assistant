@@ -1,0 +1,44 @@
+---
+description: Core project rules for Cursor agent
+globs:
+alwaysApply: true
+---
+
+# Core Rules
+
+## Read Order
+
+Before making a plan or editing code, read:
+
+1. `README.md`
+2. `AGENTS.md`
+3. `docs/00-index.md`
+4. `docs/docs-policy.md`
+5. relevant docs under `docs/`
+
+## Source of Truth
+
+- Business and system facts live in `docs/`.
+- Execution rules live in `AGENTS.md` and this rules folder.
+- Do not assume intent from code alone when docs already exist.
+
+## Default Behavior
+
+- Prefer updating existing docs over creating new docs.
+- Use `docs/docs-policy.md` for the full doc list, templates, examples, and new-doc decision rules.
+- Keep changes scoped to the requested task.
+- When requirements are fuzzy, refine docs first.
+- If docs and code conflict, identify the conflict and update the right source in the same task when intent is clear.
+
+## Required Final Output
+
+At the end of the task, report:
+
+- code changes
+- docs changes
+- new docs created or not
+- tests added or updated
+- local automated validation
+- manual smoke or real-interface validation
+- skipped validation and why
+- remaining risks

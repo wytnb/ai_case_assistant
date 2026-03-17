@@ -5,15 +5,15 @@
 文档同步检查脚本
 
 用途：
-1. 检查本次 Git 改动中是否同时包含代码文件和文档文件；
-2. 根据改动路径给出建议检查的文档；
-3. 在严格模式下，当改了代码但没有改任何文档时返回非 0，便于本地或 CI 使用。
+1. 检查本次 Git 改动中是否同时包含代码 / 脚本文件与文档文件；
+2. 根据改动路径给出建议至少检查的文档；
+3. 在严格模式下，当改了代码却没有同步任何文档时返回非 0，便于本地或 CI 使用。
 
 默认行为：
 - 默认检查 staged 改动；
 - 默认开启严格模式；
 - 若只是查看工作区改动，可传入 --working-tree；
-- 若只是提示而不阻止流程，可传入 --no-strict。
+- 若只想查看建议而不阻止流程，可传入 --no-strict。
 """
 
 from __future__ import annotations
@@ -24,19 +24,34 @@ import sys
 from pathlib import Path
 from typing import Iterable, List, Set
 
-DOC_FILES = {
-    "AGENTS.md",
+ROOT_DOC_FILES = {
     "README.md",
-    "docs/product_facts.md",
-    "docs/product_notes.md",
-    "docs/architecture.md",
-    "docs/architecture_notes.md",
-    "docs/conventions.md",
-    "docs/workflow.md",
-    "docs/contracts.md",
-    "docs/acceptance.md",
-    "docs/doc_sync_matrix.md",
-    "docs/project_overview.md",
+    "AGENTS.md",
+    "scripts/verify/README.md",
+    "tests/regression/README.md",
+}
+
+RULE_FILES = {
+    ".cursor/rules/00-core.mdc",
+    ".cursor/rules/10-docs-and-tests.mdc",
+}
+
+DOC_FILES = {
+    "docs/00-index.md",
+    "docs/docs-policy.md",
+    "docs/01-overview.md",
+    "docs/02-scope-and-nongoals.md",
+    "docs/03-business-flows.md",
+    "docs/04-domain-model.md",
+    "docs/05-system-architecture.md",
+    "docs/06-api-contracts.md",
+    "docs/07-data-model.md",
+    "docs/08-rules-and-edge-cases.md",
+    "docs/09-env-and-runbook.md",
+    "docs/10-testing-strategy.md",
+    "docs/11-regression-matrix.md",
+    "docs/12-release-smoke-checklist.md",
+    "docs/13-requirement-deltas.md",
 }
 
 CODE_EXTENSIONS = {
@@ -53,6 +68,7 @@ CODE_EXTENSIONS = {
     ".yml",
     ".gradle",
     ".properties",
+    ".toml",
 }
 
 SCRIPT_EXTENSIONS = {
@@ -70,58 +86,147 @@ IGNORED_PREFIXES = (
 
 DOC_SUGGESTION_RULES = [
     (
-        "用户可见页面或当前阶段范围变化",
+        "用户可见页面、主链路或范围变化",
         lambda p: (p.startswith("lib/features/") and "/presentation/" in p)
-        or p.startswith("lib/app/router/"),
-        {"docs/product_notes.md", "docs/acceptance.md", "README.md", "docs/project_overview.md"},
+        or p.startswith("lib/app/router/")
+        or p.startswith("lib/app/presentation/"),
+        {
+            "README.md",
+            "docs/02-scope-and-nongoals.md",
+            "docs/03-business-flows.md",
+            "docs/08-rules-and-edge-cases.md",
+            "docs/11-regression-matrix.md",
+            "docs/13-requirement-deltas.md",
+        },
     ),
     (
-        "数据模型、字段、DTO、实体、枚举、JSON 或解析规则变化",
-        lambda p: any(key in p for key in [
-            "/models/",
-            "/entities/",
-            "/dto",
-            "_dto.dart",
-            "_entity.dart",
-            "_vo.dart",
-            "_mapper.dart",
-            "drift",
-            "table",
-            "schema",
-            "json",
-        ]),
-        {"docs/contracts.md", "docs/acceptance.md"},
+        "AI 接口、网络路径、错误映射或环境变量变化",
+        lambda p: p.startswith("lib/features/ai/")
+        or p.startswith("lib/core/network/")
+        or p.startswith("lib/core/config/"),
+        {
+            "docs/06-api-contracts.md",
+            "docs/08-rules-and-edge-cases.md",
+            "docs/09-env-and-runbook.md",
+            "docs/10-testing-strategy.md",
+            "docs/12-release-smoke-checklist.md",
+            "docs/13-requirement-deltas.md",
+        },
     ),
     (
-        "架构边界、模块职责、依赖方向、路由组织变化",
+        "领域对象、接口字段、JSON 或数据口径变化",
+        lambda p: any(
+            key in p
+            for key in [
+                "/models/",
+                "/entities/",
+                "/dto",
+                "_dto.dart",
+                "_entity.dart",
+                "_vo.dart",
+                "_mapper.dart",
+                "/tables/",
+                "schema",
+                "json",
+            ]
+        ),
+        {
+            "docs/04-domain-model.md",
+            "docs/06-api-contracts.md",
+            "docs/07-data-model.md",
+            "docs/08-rules-and-edge-cases.md",
+            "docs/10-testing-strategy.md",
+        },
+    ),
+    (
+        "架构边界、模块职责或依赖方向变化",
         lambda p: p.startswith("lib/app/")
         or p.startswith("lib/core/")
         or p.startswith("lib/shared/")
         or "/datasources/" in p
         or "/repositories/" in p
+        or "/presentation/providers/" in p
         or "_repository.dart" in p
         or "_repository_impl.dart" in p,
-        {"docs/architecture.md", "docs/architecture_notes.md"},
+        {
+            "docs/05-system-architecture.md",
+            "docs/11-regression-matrix.md",
+        },
     ),
     (
-        "命名、错误处理、日志或通用实现方式变化",
-        lambda p: any(key in p for key in [
-            "logger",
-            "log",
-            "error",
-            "exception",
-            "util",
-            "utils",
-            "constant",
-            "constants",
-            "_provider.dart",
-        ]),
-        {"docs/conventions.md"},
+        "环境配置、构建方式或平台元数据变化",
+        lambda p: p in {"pubspec.yaml", "pubspec.lock", ".fvmrc", "analysis_options.yaml"}
+        or p.startswith("android/")
+        or p.startswith("ios/")
+        or p.startswith("macos/")
+        or p.startswith("linux/")
+        or p.startswith("windows/")
+        or p.startswith("web/"),
+        {
+            "README.md",
+            "docs/09-env-and-runbook.md",
+            "docs/12-release-smoke-checklist.md",
+        },
     ),
     (
-        "AI 协作方式或流程规则变化",
-        lambda p: p.startswith("scripts/"),
-        {"AGENTS.md", "docs/workflow.md", "docs/doc_sync_matrix.md"},
+        "测试口径或测试布局变化",
+        lambda p: p.startswith("test/") or p.startswith("tests/"),
+        {
+            "docs/10-testing-strategy.md",
+            "docs/11-regression-matrix.md",
+            "docs/12-release-smoke-checklist.md",
+        },
+    ),
+    (
+        "AI 协作规则、文档同步流程或脚本变化",
+        lambda p: p.startswith("scripts/")
+        or p.startswith(".cursor/")
+        or p == "AGENTS.md",
+        {
+            "AGENTS.md",
+            "docs/docs-policy.md",
+            ".cursor/rules/00-core.mdc",
+            ".cursor/rules/10-docs-and-tests.mdc",
+        },
+    ),
+]
+
+EXTRA_REMINDER_RULES = [
+    (
+        "如本次改动改变了范围边界、阶段目标或需求理解，请追加检查 docs/13-requirement-deltas.md。",
+        lambda files: any(
+            (p.startswith("lib/features/") and "/presentation/" in p)
+            or p.startswith("lib/app/router/")
+            or p.startswith("lib/app/presentation/")
+            for p in files
+        ),
+    ),
+    (
+        "如本次改动形成了新的长期架构取舍，请考虑新增或更新 docs/adr/*.md。",
+        lambda files: any(
+            p.startswith("lib/app/")
+            or p.startswith("lib/core/")
+            or p.startswith("lib/shared/")
+            or "/datasources/" in p
+            or "/repositories/" in p
+            or "/presentation/providers/" in p
+            or "_repository.dart" in p
+            or "_repository_impl.dart" in p
+            for p in files
+        ),
+    ),
+    (
+        "如本次改动涉及 AI 接口、真实网络路径、环境变量或发布步骤，请评估真实接口验证或手工 smoke。",
+        lambda files: any(
+            p.startswith("lib/features/ai/")
+            or p.startswith("lib/core/network/")
+            or p.startswith("lib/core/config/")
+            or p.startswith("android/")
+            or p.startswith("ios/")
+            or p.startswith("macos/")
+            or p.startswith("web/")
+            for p in files
+        ),
     ),
 ]
 
@@ -142,16 +247,29 @@ def run_git_command(args: List[str]) -> str:
 def get_changed_files(staged: bool, against: str | None) -> List[str]:
     if staged:
         output = run_git_command(["diff", "--name-only", "--cached"])
+        extra_output = ""
     elif against:
         output = run_git_command(["diff", "--name-only", against])
+        extra_output = run_git_command(["ls-files", "--others", "--exclude-standard"])
     else:
         output = run_git_command(["diff", "--name-only"])
-    files = [line.strip().replace("\\", "/") for line in output.splitlines() if line.strip()]
+        extra_output = run_git_command(["ls-files", "--others", "--exclude-standard"])
+
+    combined_output = "\n".join(part for part in [output, extra_output] if part.strip())
+    files = [
+        line.strip().replace("\\", "/")
+        for line in combined_output.splitlines()
+        if line.strip()
+    ]
     return [f for f in files if not any(f.startswith(prefix) for prefix in IGNORED_PREFIXES)]
 
 
 def is_doc_file(path: str) -> bool:
-    return path in DOC_FILES or (path.endswith(".md") and path.startswith("docs/"))
+    if path in ROOT_DOC_FILES or path in DOC_FILES or path in RULE_FILES:
+        return True
+    if path.startswith("docs/adr/") and path.endswith(".md"):
+        return True
+    return path.startswith("docs/") and path.endswith(".md")
 
 
 def is_code_like_file(path: str) -> bool:
@@ -173,6 +291,18 @@ def suggest_docs(changed_files: Iterable[str]) -> Set[str]:
             except Exception:
                 continue
     return suggestions
+
+
+def collect_extra_reminders(changed_files: Iterable[str]) -> List[str]:
+    file_list = list(changed_files)
+    reminders: List[str] = []
+    for message, matcher in EXTRA_REMINDER_RULES:
+        try:
+            if matcher(file_list):
+                reminders.append(message)
+        except Exception:
+            continue
+    return reminders
 
 
 def main() -> int:
@@ -210,11 +340,12 @@ def main() -> int:
     code_files = sorted([f for f in changed_files if is_code_like_file(f) and not is_doc_file(f)])
     other_files = sorted([f for f in changed_files if f not in doc_files and f not in code_files])
     suggestions = sorted(suggest_docs(code_files))
+    extra_reminders = collect_extra_reminders(code_files)
 
     print("=== 文档同步检查结果 ===")
     print(f"改动文件总数：{len(changed_files)}")
     print(f"代码/脚本文件数：{len(code_files)}")
-    print(f"文档文件数：{len(doc_files)}")
+    print(f"文档 / 规则文件数：{len(doc_files)}")
     print(f"其他文件数：{len(other_files)}")
     print()
 
@@ -224,20 +355,24 @@ def main() -> int:
             print(f"- {path}")
         print()
 
+    print("【已改动文档】")
     if doc_files:
-        print("【已改动文档】")
         for path in doc_files:
             print(f"- {path}")
-        print()
     else:
-        print("【已改动文档】")
         print("- 无")
-        print()
+    print()
 
     if suggestions:
         print("【建议至少检查的文档】")
         for path in suggestions:
             print(f"- {path}")
+        print()
+
+    if extra_reminders:
+        print("【额外提醒】")
+        for reminder in extra_reminders:
+            print(f"- {reminder}")
         print()
 
     if other_files:
@@ -247,8 +382,8 @@ def main() -> int:
         print()
 
     if code_files and not doc_files:
-        print("[结论] 检测到代码改动，但未检测到任何文档改动。")
-        print("请检查 docs/doc_sync_matrix.md，并更新受影响文档。")
+        print("[结论] 检测到代码 / 脚本改动，但未检测到任何文档改动。")
+        print("请检查 docs/docs-policy.md，并更新受影响的编号文档。")
         return 1 if strict else 0
 
     missing_suggestions = [path for path in suggestions if path not in doc_files]

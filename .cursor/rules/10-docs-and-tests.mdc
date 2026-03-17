@@ -1,0 +1,57 @@
+---
+description: Documentation and testing enforcement rules
+globs:
+alwaysApply: true
+---
+
+# Docs and Tests Rules
+
+## Documentation Sync
+
+Update docs in the same task when changing:
+
+- scope or behavior
+- business flows
+- interfaces or AI JSON
+- data models or migrations
+- architecture boundaries
+- env / runbook steps
+- testing strategy or release smoke
+
+Use `docs/docs-policy.md` to decide which numbered doc should be updated or whether a new doc is justified.
+
+## Testing Sync
+
+### New feature
+
+Add:
+
+- a happy-path test
+- at least one edge case
+- at least one failure-path test
+
+### Bug fix
+
+Add or update a regression test.
+
+### Contract change
+
+Add or update integration-style coverage.
+
+### Real-interface or manual-smoke triggers
+
+If the task changes AI requests, AI response parsing, network configuration, environment variables, release steps, or critical user-visible flows, evaluate and when feasible run:
+
+- real AI interface validation
+- manual smoke on the main flow
+
+If not run, the final report must say what was skipped, why, and what risk remains.
+
+## Done Criteria
+
+Do not mark the task as done unless:
+
+- docs are updated,
+- tests are updated when required,
+- local validation was executed or the blocker is explicitly reported,
+- required real-interface or manual-smoke validation was executed or explicitly waived with a reason.

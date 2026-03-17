@@ -2,71 +2,47 @@
 
 ## 项目简介
 
-AI 健康病例助手是一个以 Android 演示为主的移动端 MVP 项目。
-项目目标是做出一个可以真实跑通的“健康记录 + AI 整理 + 报告生成”闭环，用于作品展示、面试讲解和 AI 协作开发实践。
+AI 健康病例助手是一个以 Android 演示为主的 Flutter 移动端 MVP 项目。
+当前目标不是做成完整医疗产品，而是跑通一个真实可演示的闭环：
 
-当前版本已经不是单纯的工程骨架，而是具备以下真实链路：
-
-1. 输入原始描述
-2. 可选选择多张图片
-3. 调用 AI 提取摘要与备注
+1. 输入健康相关原始描述
+2. 可选选择多张图片附件
+3. 调用 AI 提取摘要、备注和事件时间
 4. 本地保存健康记录与附件
 5. 浏览记录列表与详情
-6. 生成并查看周报 / 月报 / 季报
+6. 生成并查看周报、月报、季报
 
-## 当前已实现内容
+仓库包含 Android、iOS、macOS、Linux、Windows、Web 的 Flutter 骨架，但当前文档和演示目标以 Android 本地使用场景为主。
 
-### 页面与路由
+## 当前实现状态
+
+### 已落地能力
 
 - 首页 `/`
 - 健康记录列表 `/records`
-- 新增记录 `/records/new`
+- 新增健康记录 `/records/new`
 - 健康记录详情 `/records/:id`
 - 报告列表 `/reports`
 - 报告详情 `/reports/:id`
-
-### 健康记录能力
-
-- 文本录入健康信息
-- 从相册选择多张图片
-- 图片缩略图预览
-- 提交前调用 AI 提取 `symptomSummary` 和 `notes`
-- 本地保存健康记录到 Drift
-- 将图片复制到应用私有目录
-- 详情页回显附件，并支持点击放大查看
-
-### 报告能力
-
-- 手动切换并生成 `week`、`month`、`quarter`
-- 生成结果落库到本地 `reports` 表
-- 同一时间范围重复生成时按覆盖更新处理
-- 报告详情页展示标题、摘要、建议和 Markdown 原文
-
-### AI 能力
-
 - `POST /ai/extract`
 - `POST /ai/report`
-- `USE_MOCK_AI_EXTRACT=true` 时可切换到本地 mock 提取实现
+- Drift 本地数据库与附件本地复制
 
-## 当前未实现内容
+### 当前明确未落地
 
-以下能力仍未落地：
-
-- AI 追问页与追问会话落库
-- 独立提取结果表
 - 记录编辑 / 删除
-- 语音输入
-- OCR 或图片内容提取
+- 附件删除
+- AI 追问页与追问会话落库
+- OCR / 图片内容提取
 - 设置页
 - 云同步
 - 账号体系
 
-## 技术栈概览
+## 技术栈
 
-### 当前实际使用
-
-- Flutter
-- Dart
+- Flutter 3.41.4 via FVM
+- Dart 3.11.1
+- Material 3
 - Riverpod
 - go_router
 - Dio
@@ -76,57 +52,38 @@ AI 健康病例助手是一个以 Android 演示为主的移动端 MVP 项目。
 - uuid
 - intl
 
-### 当前用于代码生成
+补充说明：
 
-- build_runner
-- drift_dev
+- `freezed` 与 `json_serializable` 已在依赖中声明，但当前业务代码尚未实际使用。
+- 当前没有 CI 配置，也没有正式发布流水线。
 
-### 已引入但暂未在业务代码中使用
+## 快速启动
 
-- freezed / json_serializable
+### 前置要求
 
-## 目录概览
-
-- `lib/app/`：应用入口、路由、首页
-- `lib/core/`：配置、Dio、Drift 数据库入口
-- `lib/features/ai/`：AI 接口、异常、mock / remote 实现
-- `lib/features/health_record/`：记录表、附件存储、记录页面与 Provider
-- `lib/features/report/`：报告表、报告页面与 Provider
-- `docs/`：项目文档
-- `scripts/`：文档同步检查脚本
-- `test/`：测试
-- `AGENTS.md`：AI 协作入口
-
-## 如何运行项目
-
-### 环境要求
-
-- 已安装 Flutter
+- 已安装 Flutter 与 FVM
 - 已安装 Android Studio / Android SDK / ADB
-- 已安装 FVM
-- 已连接 Android 真机或已创建模拟器
+- 需要演示真机或模拟器时，已连接设备
 
-### 运行步骤
+### 常用命令
 
-1. 安装依赖
+安装依赖：
 
 ```bash
 fvm flutter pub get
 ```
 
-2. 生成 Drift 代码
+生成 Drift 代码：
 
 ```bash
 fvm flutter pub run build_runner build --delete-conflicting-outputs
 ```
 
-3. 启动应用
+启动应用：
 
 ```bash
 fvm flutter run
 ```
-
-### 常用可选参数
 
 指定 AI 代理地址：
 
@@ -134,62 +91,86 @@ fvm flutter run
 fvm flutter run --dart-define=AI_API_BASE_URL=https://your-worker.example.com
 ```
 
-使用本地 mock 提取：
+使用本地 mock 提取服务：
 
 ```bash
 fvm flutter run --dart-define=USE_MOCK_AI_EXTRACT=true
 ```
 
-运行真实 AI 接口集成测试：
+## 验证命令
+
+静态检查：
+
+```bash
+fvm flutter analyze
+```
+
+默认自动化测试：
+
+```bash
+fvm flutter test
+```
+
+真实 AI 接口集成测试：
 
 ```bash
 fvm flutter test test/features/ai/real_ai_api_test.dart --dart-define=RUN_REAL_AI_API_TESTS=true --dart-define=AI_API_BASE_URL=https://your-worker.example.com
 ```
 
-## 当前实现细节说明
+文档同步检查脚本：
 
-- 首页当前仍是静态入口页，不展示最近记录摘要。
-- 新增记录时，AI 提取当前只提交 `rawText`，图片不会传给 AI。
-- `HealthEvent.sourceType` 当前统一保存为 `text`。
-- 报告详情页当前直接显示 Markdown 原文，没有 Markdown 富渲染。
-- 当前仅有基础首页 widget smoke test，测试覆盖仍在补充中。
+```bash
+python scripts/check_doc_sync.py --working-tree --no-strict
+```
 
-## 核心文档入口
+说明：
 
-### 面向 AI 协作
+- 真实 AI 集成测试默认跳过，只有显式传入 `RUN_REAL_AI_API_TESTS=true` 才会运行。
+- 当前 FVM 命令在本地会输出 `Can't load Kernel binary: Invalid SDK hash.` 警告，但 `flutter analyze` 与 `flutter test` 仍可完成。
 
-- `AGENTS.md`
-- `docs/product_facts.md`
-- `docs/product_notes.md`
-- `docs/architecture.md`
-- `docs/architecture_notes.md`
-- `docs/conventions.md`
-- `docs/workflow.md`
-- `docs/contracts.md`
-- `docs/acceptance.md`
-- `docs/doc_sync_matrix.md`
+## 仓库结构
 
-### 面向人类阅读
+- `lib/app/`：应用入口、主题装配、路由、首页
+- `lib/core/`：配置、Dio、Drift 数据库
+- `lib/features/ai/`：AI 接口、异常、mock / remote 实现
+- `lib/features/health_record/`：记录创建、列表、详情、附件本地存储
+- `lib/features/report/`：报告生成、列表、详情
+- `test/`：当前自动化测试主目录
+- `docs/`：项目事实文档
+- `scripts/`：文档同步与后续验证脚本入口
 
-- `README.md`
-- `docs/project_overview.md`
+## 文档入口
 
-## 脚本入口
+建议阅读顺序：
 
-- `scripts/check_doc_sync.py`：检查代码改动是否需要同步更新文档，并给出建议文档列表
-- `scripts/run_doc_sync_check.bat`：Windows 下运行文档同步检查脚本的快捷入口
+1. [AGENTS.md](/c:/files/VibeCoding/ai_case_assistant/AGENTS.md)
+2. [docs/00-index.md](/c:/files/VibeCoding/ai_case_assistant/docs/00-index.md)
+3. [docs/docs-policy.md](/c:/files/VibeCoding/ai_case_assistant/docs/docs-policy.md)
+4. 与当前任务相关的编号文档
 
-## 当前已确定的核心原则
+文档模板、完整清单、示例和新增文档判定规则统一见 `docs/docs-policy.md`。
 
-- 离线优先保存本地数据
-- AI 只做辅助整理，不做诊断
-- 先做可演示 MVP，再逐步增强
-- 当前以真实可运行闭环优先，不急于补齐所有抽象层
+高频文档：
 
-## 后续计划概览
+- [docs/01-overview.md](/c:/files/VibeCoding/ai_case_assistant/docs/01-overview.md)
+- [docs/02-scope-and-nongoals.md](/c:/files/VibeCoding/ai_case_assistant/docs/02-scope-and-nongoals.md)
+- [docs/03-business-flows.md](/c:/files/VibeCoding/ai_case_assistant/docs/03-business-flows.md)
+- [docs/05-system-architecture.md](/c:/files/VibeCoding/ai_case_assistant/docs/05-system-architecture.md)
+- [docs/09-env-and-runbook.md](/c:/files/VibeCoding/ai_case_assistant/docs/09-env-and-runbook.md)
+- [docs/10-testing-strategy.md](/c:/files/VibeCoding/ai_case_assistant/docs/10-testing-strategy.md)
 
-1. 让首页承载更多真实数据概览
-2. 补充记录编辑 / 删除与更完整的附件管理
-3. 继续收敛健康记录和报告模块的服务边界
-4. 补 AI 追问和更细粒度结构化结果
-5. 增加测试覆盖与更多异常场景验证
+## 当前已知限制
+
+- 数据仅保存在本地数据库和应用私有目录，换机或卸载会丢失。
+- AI 提取和报告生成依赖网络；无网络时只能查看已有本地数据。
+- 首页当前只有入口，不展示最近记录或统计摘要。
+- `HealthEvent.sourceType` 当前统一写为 `text`。
+- 图片附件会本地保存，但当前不会参与 AI 提取。
+- 报告详情展示 Markdown 原文，没有富渲染。
+- Android `applicationId`、iOS/macOS bundle id、Web manifest 描述仍保留默认占位值，尚未做产品化整理。
+
+## 相关支持目录
+
+- `.cursor/rules/`：Cursor 规则文件
+- `scripts/verify/`：固定验证脚本的预留目录
+- `tests/regression/`：后续专项回归用例的预留目录
