@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:ai_case_assistant/core/constants/health_record_limits.dart';
 import 'package:ai_case_assistant/features/ai/domain/exceptions/ai_extract_exception.dart';
 import 'package:ai_case_assistant/features/health_record/presentation/providers/health_record_providers.dart';
 import 'package:flutter/material.dart';
@@ -87,6 +88,7 @@ class _CreateHealthRecordPageState
       createHealthRecordControllerProvider,
     );
     final bool isSubmitting = createState.isLoading;
+    final int selectedImageCount = _selectedImages.length;
 
     return Scaffold(
       appBar: AppBar(title: const Text('新增记录')),
@@ -103,20 +105,39 @@ class _CreateHealthRecordPageState
             TextFormField(
               controller: _rawTextController,
               enabled: !isSubmitting,
+              onChanged: (_) => setState(() {}),
               minLines: 5,
               maxLines: 10,
               decoration: const InputDecoration(
                 labelText: '原始描述',
                 hintText: '例如：昨晚开始喉咙痛，今天早上有点发烧，还拍了化验单照片。',
                 border: OutlineInputBorder(),
+                helperText: '最多1000字',
               ),
               validator: (String? value) {
-                if (value == null || value.trim().isEmpty) {
+                final String normalizedValue = value?.trim() ?? '';
+                if (normalizedValue.isEmpty) {
                   return '请输入原始描述';
+                }
+                if (normalizedValue.length > healthRecordRawTextMaxLength) {
+                  return '原始描述不能超过1000字';
                 }
 
                 return null;
               },
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                '$_trimmedRawTextLength/${HealthRecordService.rawTextMaxLength}',
+                style: TextStyle(
+                  color:
+                      _trimmedRawTextLength > HealthRecordService.rawTextMaxLength
+                      ? Theme.of(context).colorScheme.error
+                      : Theme.of(context).textTheme.bodySmall?.color,
+                ),
+              ),
             ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
@@ -128,7 +149,7 @@ class _CreateHealthRecordPageState
             Text(
               _selectedImages.isEmpty
                   ? '当前未选择图片'
-                  : '已选择 ${_selectedImages.length} 张图片',
+                  : '已选择 $selectedImageCount 张图片',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             if (_selectedImages.isNotEmpty) ...<Widget>[
@@ -166,12 +187,24 @@ class _CreateHealthRecordPageState
 
   String _buildErrorMessage(Object? error) {
     if (error is AiExtractException &&
+        error.type != AiExtractExceptionType.invalidResponsePayload) {
+      return error.message;
+    }
+
+    if (error is AiExtractException &&
+        error.type == AiExtractExceptionType.invalidRequestPayload) {
+      return error.message;
+    }
+
+    if (error is AiExtractException &&
         error.type == AiExtractExceptionType.invalidResponsePayload) {
-      return 'AI 返回的事件时间无效，保存已取消，请稍后重试。';
+      return 'AI 返回结果无效，保存已取消，请稍后重试。';
     }
 
     return '保存失败，请稍后重试。';
   }
+
+  int get _trimmedRawTextLength => _rawTextController.text.trim().length;
 }
 
 class _SelectedImagePreview extends StatelessWidget {

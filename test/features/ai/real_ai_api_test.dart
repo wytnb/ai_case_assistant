@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:ai_case_assistant/core/config/app_config.dart';
+import 'package:ai_case_assistant/features/ai/data/remote/event_time_formatter.dart';
 import 'package:ai_case_assistant/features/ai/data/remote/remote_ai_extract_service.dart';
 import 'package:ai_case_assistant/features/ai/data/remote/remote_ai_report_service.dart';
 import 'package:ai_case_assistant/features/ai/domain/exceptions/ai_extract_exception.dart';
@@ -25,8 +26,10 @@ void main() {
   group('Real AI API integration', () {
     group('/ai/extract', () {
       test('success case 1 logs input and actual mapped result', () async {
+        final DateTime eventTime = DateTime.utc(2026, 3, 14, 12, 0);
         final Map<String, dynamic> input = <String, dynamic>{
           'rawText': '昨天晚上八点开始喉咙痛，到九点半左右最明显，今天早上稍微缓解。',
+          'eventTime': formatEventTimeForApi(eventTime),
         };
         final _RecordedDioClient client = _createRecordedDioClient();
         final RemoteAiExtractService service = RemoteAiExtractService(
@@ -35,6 +38,7 @@ void main() {
 
         final result = await service.extractFromRawText(
           rawText: input['rawText'] as String,
+          eventTime: eventTime,
         );
 
         _logCase(
@@ -45,18 +49,17 @@ void main() {
           mappedResult: <String, dynamic>{
             'symptomSummary': result.symptomSummary,
             'notes': result.notes,
-            'eventStartTime': result.eventStartTime.toIso8601String(),
-            'eventEndTime': result.eventEndTime.toIso8601String(),
           },
         );
 
         expect(result.symptomSummary.trim(), isNotEmpty);
-        expect(result.eventStartTime.isAfter(result.eventEndTime), isFalse);
       }, skip: skipReason);
 
       test('success case 2 logs input and actual mapped result', () async {
+        final DateTime eventTime = DateTime.utc(2026, 3, 19, 6, 0);
         final Map<String, dynamic> input = <String, dynamic>{
           'rawText': '上周三下午两点开始头痛，持续到晚上七点，期间还有一点恶心，但没有发烧。',
+          'eventTime': formatEventTimeForApi(eventTime),
         };
         final _RecordedDioClient client = _createRecordedDioClient();
         final RemoteAiExtractService service = RemoteAiExtractService(
@@ -65,6 +68,7 @@ void main() {
 
         final result = await service.extractFromRawText(
           rawText: input['rawText'] as String,
+          eventTime: eventTime,
         );
 
         _logCase(
@@ -75,19 +79,18 @@ void main() {
           mappedResult: <String, dynamic>{
             'symptomSummary': result.symptomSummary,
             'notes': result.notes,
-            'eventStartTime': result.eventStartTime.toIso8601String(),
-            'eventEndTime': result.eventEndTime.toIso8601String(),
           },
         );
 
         expect(result.symptomSummary.trim(), isNotEmpty);
-        expect(result.eventStartTime.isAfter(result.eventEndTime), isFalse);
       }, skip: skipReason);
 
       test(
         'failure case 1 logs actual raw response when rawText is missing',
         () async {
-          final Map<String, dynamic> input = <String, dynamic>{};
+          final Map<String, dynamic> input = <String, dynamic>{
+            'eventTime': '2026-03-15T08:00:00+08:00',
+          };
           final Response<dynamic> response = await _postRaw(
             path: '/ai/extract',
             body: input,
@@ -108,7 +111,10 @@ void main() {
       test(
         'failure case 2 logs actual raw response when rawText is empty',
         () async {
-          final Map<String, dynamic> input = <String, dynamic>{'rawText': ''};
+          final Map<String, dynamic> input = <String, dynamic>{
+            'rawText': '',
+            'eventTime': '2026-03-15T08:00:00+08:00',
+          };
           final Response<dynamic> response = await _postRaw(
             path: '/ai/extract',
             body: input,
@@ -134,8 +140,7 @@ void main() {
         final List<AiReportEvent> events = <AiReportEvent>[
           AiReportEvent(
             id: 'real-report-event-1',
-            eventStartTime: DateTime.parse('2026-03-15T08:00:00.000'),
-            eventEndTime: DateTime.parse('2026-03-15T09:30:00.000'),
+            eventTime: DateTime.utc(2026, 3, 15, 0),
             sourceType: 'text',
             rawText: '昨天晚上八点开始喉咙痛，到九点半左右最明显。',
             symptomSummary: '喉咙痛',
@@ -187,8 +192,7 @@ void main() {
         final List<AiReportEvent> events = <AiReportEvent>[
           AiReportEvent(
             id: 'real-report-event-2',
-            eventStartTime: DateTime.parse('2026-03-11T14:00:00.000'),
-            eventEndTime: DateTime.parse('2026-03-11T19:00:00.000'),
+            eventTime: DateTime.utc(2026, 3, 11, 6),
             sourceType: 'text',
             rawText: '上周三下午两点开始头痛，持续到晚上七点。',
             symptomSummary: '头痛',
@@ -196,8 +200,7 @@ void main() {
           ),
           AiReportEvent(
             id: 'real-report-event-3',
-            eventStartTime: DateTime.parse('2026-03-18T09:00:00.000'),
-            eventEndTime: DateTime.parse('2026-03-18T12:00:00.000'),
+            eventTime: DateTime.utc(2026, 3, 18, 1),
             sourceType: 'text',
             rawText: '今天早上九点开始胃胀，到中午缓解一些。',
             symptomSummary: '胃胀',
@@ -413,8 +416,7 @@ ${_prettyJson(_normalizeForLog(response.data))}
 Map<String, dynamic> _reportEventToJson(AiReportEvent event) {
   return <String, dynamic>{
     'id': event.id,
-    'eventStartTime': event.eventStartTime.toIso8601String(),
-    'eventEndTime': event.eventEndTime.toIso8601String(),
+    'eventTime': formatEventTimeForApi(event.eventTime),
     'sourceType': event.sourceType,
     'rawText': event.rawText,
     'symptomSummary': event.symptomSummary,
@@ -427,9 +429,7 @@ bool _looksLikeExtractSuccess(dynamic data) {
     return false;
   }
 
-  return data['symptomSummary'] is String &&
-      data['eventStartTime'] is String &&
-      data['eventEndTime'] is String;
+  return data['symptomSummary'] is String;
 }
 
 bool _looksLikeReportSuccess(dynamic data) {

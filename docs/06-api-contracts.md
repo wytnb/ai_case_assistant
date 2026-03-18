@@ -13,13 +13,14 @@
 
 - 方法：`POST`
 - 路径：`/ai/extract`
-- 用途：从用户原始文本中提取摘要、备注和事件时间
+- 用途：从用户原始文本中提取摘要与备注
 
 #### 请求字段
 
 | 字段 | 类型 | 必填 | 含义 | 备注 |
 |---|---|---|---|---|
-| `rawText` | `string` | 是 | 用户原始描述 | 客户端会先 `trim()`；空字符串视为无效输入 |
+| `rawText` | `string` | 是 | 用户原始描述 | 客户端会先 `trim()`；空字符串视为无效输入；长度不得超过 1000 字 |
+| `eventTime` | `string` | 是 | 本次记录时间 | 必须是带 `+08:00`、且不带毫秒的 ISO 8601 字符串，例如 `2026-03-18T10:20:30+08:00` |
 
 #### 响应字段
 
@@ -27,13 +28,11 @@
 |---|---|---|---|
 | `symptomSummary` | `string` | 摘要 | 为空或缺失时客户端会回退到 `rawText` 首句 |
 | `notes` | `string?` | 备注 | 缺失、空白或非字符串时客户端按 `null` 处理 |
-| `eventStartTime` | `string` | 事件开始时间 | 必须是可解析的 ISO 8601 字符串 |
-| `eventEndTime` | `string` | 事件结束时间 | 必须是可解析的 ISO 8601 字符串 |
 
 #### 当前客户端处理规则
 
+- `rawText` 在调用前会校验为非空且不超过 1000 字；校验失败时不发请求
 - 如果响应不是对象，视为无效 payload
-- `eventStartTime`、`eventEndTime` 缺失、空白、不可解析或顺序反转时，创建记录直接失败
 - `notes` 不会被客户端补伪造文案
 - 当前不会把图片内容发送到该接口
 
@@ -57,8 +56,7 @@
 | 字段 | 类型 | 必填 | 含义 | 备注 |
 |---|---|---|---|---|
 | `id` | `string` | 是 | 记录 ID | 来自 `HealthEvent.id` |
-| `eventStartTime` | `string` | 是 | 开始时间 | ISO 8601 |
-| `eventEndTime` | `string` | 是 | 结束时间 | ISO 8601 |
+| `eventTime` | `string` | 是 | 事件时间 | 当前复用不带毫秒、带 `+08:00` 的 ISO 8601 序列化口径 |
 | `sourceType` | `string` | 是 | 来源类型 | 当前总是 `text` |
 | `rawText` | `string?` | 否 | 原始文本 | 客户端会截断到最多 500 字符 |
 | `symptomSummary` | `string?` | 否 | 摘要 | 空白转 `null` |
@@ -78,7 +76,7 @@
 - 客户端在调用前会校验 `reportType` 非空且 `rangeEnd >= rangeStart`
 - 当前客户端仍会把空 `events` 列表发送给上游；上游应返回何种空报告语义仍待确认
 - 响应不是对象、缺字段、字段类型错误时，视为无效 payload
-- 客户端发送 `eventStartTime` / `eventEndTime`，不再发送旧 `eventTime`
+- 客户端发送 `eventTime`，不再发送 `eventStartTime` / `eventEndTime`
 
 ## 错误语义
 
@@ -88,9 +86,10 @@
 
 | 异常类型 | 含义 | 处理建议 |
 |---|---|---|
+| `invalidRequestPayload` | 客户端本地输入非法 | 提示修正输入后重试 |
 | `network` | 网络连接异常或超时类连接问题 | 提示检查网络后重试 |
 | `upstreamHttpError` | AI 服务返回非成功 HTTP 状态 | 稍后重试 |
-| `invalidResponsePayload` | 响应结构或时间字段无效 | 取消保存并提示失败 |
+| `invalidResponsePayload` | 响应结构无效 | 取消保存并提示失败 |
 | `unknown` | 其他未知错误 | 稍后重试 |
 
 ### 报告接口客户端异常
@@ -118,8 +117,8 @@
 
 ## 兼容性要求
 
-- `/ai/extract` 必须继续返回可解析的 `eventStartTime` 与 `eventEndTime`
+- `/ai/extract` 必须接受 `rawText` 与 `eventTime`
+- `/ai/extract` 返回体当前至少应兼容 `symptomSummary` 与 `notes`
 - `/ai/report` 必须继续返回 `title`、`summary`、`advice`、`markdown`
 - 若上游新增字段，客户端当前会忽略未使用字段
 - 若上游删除现有必需字段或更改类型，当前客户端会按失败处理
-

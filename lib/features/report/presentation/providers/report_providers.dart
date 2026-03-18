@@ -83,8 +83,7 @@ class ReportService {
           .map(
             (HealthEvent event) => AiReportEvent(
               id: event.id,
-              eventStartTime: event.eventStartTime,
-              eventEndTime: event.eventEndTime,
+              eventTime: event.createdAt,
               sourceType: event.sourceType,
               rawText: _truncateOptionalText(
                 _normalizeOptionalText(event.rawText),

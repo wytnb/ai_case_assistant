@@ -16,8 +16,6 @@ void main() {
     await database.insertHealthEvent(
       HealthEventsCompanion.insert(
         id: 'record-1',
-        eventStartTime: DateTime.parse('2026-03-15T08:00:00.000'),
-        eventEndTime: DateTime.parse('2026-03-15T09:30:00.000'),
         sourceType: 'text',
         rawText: const Value<String?>('raw symptom text'),
         symptomSummary: const Value<String?>('summary text'),
@@ -39,6 +37,9 @@ void main() {
 
     expect(find.text('raw symptom text'), findsOneWidget);
     expect(find.text('summary text'), findsOneWidget);
+    expect(find.text('事件时间'), findsOneWidget);
+    expect(find.text('开始时间'), findsNothing);
+    expect(find.text('结束时间'), findsNothing);
     await tester.scrollUntilVisible(
       find.text('Keep monitoring for 2 days'),
       200,
@@ -55,8 +56,6 @@ void main() {
     await database.insertHealthEvent(
       HealthEventsCompanion.insert(
         id: 'record-2',
-        eventStartTime: DateTime.parse('2026-03-15T08:00:00.000'),
-        eventEndTime: DateTime.parse('2026-03-15T09:30:00.000'),
         sourceType: 'text',
         rawText: const Value<String?>('raw symptom text'),
         symptomSummary: const Value<String?>('summary text'),

@@ -1,6 +1,7 @@
 enum AiExtractExceptionType {
   network,
   upstreamHttpError,
+  invalidRequestPayload,
   invalidResponsePayload,
   unknown,
 }

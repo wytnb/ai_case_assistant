@@ -11,7 +11,7 @@
 
 | 配置项 | 环境 | 是否必填 | 作用 | 备注 |
 |---|---|---|---|---|
-| `AI_API_BASE_URL` | run / test | 否 | AI 代理基础地址 | 默认值为 `https://ai-api-worker.wytai.workers.dev` |
+| `AI_API_BASE_URL` | run / test | 否 | AI 代理基础地址 | 默认值为 `https://ai-api-worker.wytai.workers.dev`，当前真实验证也使用该地址 |
 | `USE_MOCK_AI_EXTRACT` | run | 否 | 将提取链路切到本地 mock | 默认 `false` |
 | `RUN_REAL_AI_API_TESTS` | test | 否 | 开启真实 AI 集成测试 | 默认 `false` |
 
@@ -55,6 +55,9 @@ fvm flutter test
 fvm flutter test test/features/ai/real_ai_api_test.dart --dart-define=RUN_REAL_AI_API_TESTS=true --dart-define=AI_API_BASE_URL=https://your-worker.example.com
 ```
 
+完成 mock 验证后，下一步必须执行上面的真实 AI 接口测试命令，并显式带上 `RUN_REAL_AI_API_TESTS=true`。
+当前默认真实验证地址为 `https://ai-api-worker.wytai.workers.dev`。
+
 文档同步检查：
 
 ```bash
@@ -84,8 +87,10 @@ python scripts/check_doc_sync.py --working-tree --no-strict
 
 1. `fvm flutter analyze`
 2. `fvm flutter test`
-3. 核对 `AI_API_BASE_URL` 是否指向可用代理，或改用 mock 提取
-4. 在 Android 设备上手工跑一遍记录与报告主链路
+3. 若先用 mock 验证，mock 通过后立即执行带 `RUN_REAL_AI_API_TESTS=true` 的真实 AI 集成测试
+4. 核对 `AI_API_BASE_URL` 是否指向可用代理，或改用 mock 提取
+5. 在 Android 设备上手工跑一遍记录与报告主链路；若设备依赖 Clash 等代理访问上游，保留代理，不把关闭代理作为默认排障步骤
+6. 若真机在保留代理的前提下仍无法跑通，再补一条 `fvm flutter run -d chrome --dart-define=AI_API_BASE_URL=https://ai-api-worker.wytai.workers.dev` 的 Web Chrome 备用 smoke，并在结果中单独说明覆盖边界
 
 ## 常见故障
 
@@ -101,6 +106,10 @@ python scripts/check_doc_sync.py --working-tree --no-strict
   - 症状：新增记录或报告生成提示失败
   - 处理方式：检查 `AI_API_BASE_URL`、网络状态，新增记录演示可切换 `USE_MOCK_AI_EXTRACT=true`
 
+- 故障：Android 真机只能通过 Clash 等代理访问 AI 代理
+  - 症状：主机侧真实 AI 集成测试通过，但真机手工 smoke 无法访问 `https://ai-api-worker.wytai.workers.dev`
+  - 处理方式：保留设备代理并继续排查应用日志、页面错误提示和设备网络；不要把关闭代理作为默认处理。若真机仍无法打通，可追加 Web Chrome smoke 验证 UI 与真实 AI 主链路
+
 - 故障：Python 不可用
   - 症状：`run_doc_sync_check.bat` 无法启动
   - 处理方式：安装 Python 3，或使用 `py -3`
@@ -110,5 +119,5 @@ python scripts/check_doc_sync.py --working-tree --no-strict
 1. 先确认 FVM、Flutter 与依赖已安装
 2. 再确认 `build_runner` 已生成最新 Drift 文件
 3. 再确认设备或模拟器可用
-4. 再确认 AI 代理地址是否可访问
+4. 再确认 AI 代理地址是否可访问；真机若依赖 Clash 等代理访问上游，应保持代理开启
 5. 若是文档同步问题，再运行 `scripts/check_doc_sync.py`

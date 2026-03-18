@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:ai_case_assistant/features/ai/data/remote/event_time_formatter.dart';
 import 'package:ai_case_assistant/features/ai/domain/exceptions/ai_report_exception.dart';
 import 'package:ai_case_assistant/features/ai/domain/services/ai_report_service.dart';
 import 'package:dio/dio.dart';
@@ -134,8 +135,7 @@ class RemoteAiReportService implements AiReportService {
   Map<String, dynamic> _toEventPayload(AiReportEvent event) {
     return <String, dynamic>{
       'id': event.id,
-      'eventStartTime': event.eventStartTime.toIso8601String(),
-      'eventEndTime': event.eventEndTime.toIso8601String(),
+      'eventTime': formatEventTimeForApi(event.eventTime),
       'sourceType': event.sourceType,
       'rawText': event.rawText,
       'symptomSummary': event.symptomSummary,

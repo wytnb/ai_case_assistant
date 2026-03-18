@@ -37,15 +37,7 @@ class HealthRecordDetailPage extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             children: <Widget>[
               _DetailSection(
-                title: '开始时间',
-                child: Text(_dateFormatter.format(healthRecord.eventStartTime)),
-              ),
-              _DetailSection(
-                title: '结束时间',
-                child: Text(_dateFormatter.format(healthRecord.eventEndTime)),
-              ),
-              _DetailSection(
-                title: '记录创建时间',
+                title: '事件时间',
                 child: Text(_dateFormatter.format(healthRecord.createdAt)),
               ),
               _DetailSection(

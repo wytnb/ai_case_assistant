@@ -7,7 +7,7 @@ AI 健康病例助手是一个以 Android 演示为主的 Flutter 移动端 MVP 
 
 1. 输入健康相关原始描述
 2. 可选选择多张图片附件
-3. 调用 AI 提取摘要、备注和事件时间
+3. 调用 AI 提取摘要、备注，并携带记录的 `eventTime`
 4. 本地保存健康记录与附件
 5. 浏览记录列表与详情
 6. 生成并查看周报、月报、季报
@@ -126,12 +126,16 @@ python scripts/check_doc_sync.py --working-tree --no-strict
 说明：
 
 - 真实 AI 集成测试默认跳过，只有显式传入 `RUN_REAL_AI_API_TESTS=true` 才会运行。
+- 完成 mock 验证后，下一步必须执行一次带 `RUN_REAL_AI_API_TESTS=true` 的真实 AI 集成测试，再进入手工 smoke。
+- 当前真实验证默认地址为 `https://ai-api-worker.wytai.workers.dev`。
+- Android 真机若依赖 Clash 等代理访问该地址，手工 smoke 时应保留代理，不以“关闭代理”作为默认排障步骤。
+- 若真机在保留代理的前提下仍无法跑通，可追加 `fvm flutter run -d chrome --dart-define=AI_API_BASE_URL=https://ai-api-worker.wytai.workers.dev` 作为 Web Chrome 备用 smoke；它只能补 UI 与真实 AI 主链路，不替代 Android 安装、附件和设备特有行为验证。
 - 当前 FVM 命令在本地会输出 `Can't load Kernel binary: Invalid SDK hash.` 警告，但 `flutter analyze` 与 `flutter test` 仍可完成。
 
 ## 仓库结构
 
 - `lib/app/`：应用入口、主题装配、路由、首页
-- `lib/core/`：配置、Dio、Drift 数据库
+- `lib/core/`：配置、Dio、Drift 数据库、公共约束
 - `lib/features/ai/`：AI 接口、异常、mock / remote 实现
 - `lib/features/health_record/`：记录创建、列表、详情、附件本地存储
 - `lib/features/report/`：报告生成、列表、详情

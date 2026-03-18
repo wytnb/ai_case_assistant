@@ -6,10 +6,6 @@ class HealthEvents extends Table {
 
   TextColumn get id => text()();
 
-  DateTimeColumn get eventStartTime => dateTime()();
-
-  DateTimeColumn get eventEndTime => dateTime()();
-
   TextColumn get sourceType => text()();
 
   TextColumn get rawText => text().nullable()();

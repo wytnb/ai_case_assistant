@@ -7,10 +7,10 @@ void main() {
 
     final result = await service.extractFromRawText(
       rawText: 'Sore throat with mild cough.',
+      eventTime: DateTime.utc(2026, 3, 15, 0),
     );
 
     expect(result.symptomSummary, isNotEmpty);
     expect(result.notes, isNull);
-    expect(result.eventStartTime.isAfter(result.eventEndTime), isFalse);
   });
 }

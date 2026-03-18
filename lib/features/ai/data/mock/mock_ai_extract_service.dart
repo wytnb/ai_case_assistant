@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:ai_case_assistant/core/constants/health_record_limits.dart';
 import 'package:ai_case_assistant/features/ai/domain/services/ai_extract_service.dart';
 
 class MockAiExtractService implements AiExtractService {
@@ -8,10 +9,16 @@ class MockAiExtractService implements AiExtractService {
   static const int _summaryMaxLength = 36;
 
   @override
-  Future<AiExtractResult> extractFromRawText({required String rawText}) async {
+  Future<AiExtractResult> extractFromRawText({
+    required String rawText,
+    required DateTime eventTime,
+  }) async {
     final String normalizedRawText = _normalizeText(rawText);
     if (normalizedRawText.isEmpty) {
       throw StateError('rawText must not be empty');
+    }
+    if (normalizedRawText.length > healthRecordRawTextMaxLength) {
+      throw StateError('rawText must not exceed 1000 characters');
     }
 
     if (_shouldFail(normalizedRawText)) {
@@ -21,16 +28,10 @@ class MockAiExtractService implements AiExtractService {
     await Future<void>.delayed(const Duration(milliseconds: 700));
 
     final String symptomSummary = _buildSymptomSummary(normalizedRawText);
-    final DateTime eventEndTime = DateTime.now();
-    final DateTime eventStartTime = eventEndTime.subtract(
-      const Duration(hours: 1),
-    );
 
     return AiExtractResult(
       symptomSummary: symptomSummary,
       notes: null,
-      eventStartTime: eventStartTime,
-      eventEndTime: eventEndTime,
     );
   }
 

@@ -17,7 +17,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -29,30 +29,22 @@ class AppDatabase extends _$AppDatabase {
         await migrator.alterTable(
           TableMigration(
             healthEvents,
-            newColumns: <GeneratedColumn<Object>>[
-              healthEvents.eventStartTime,
-              healthEvents.eventEndTime,
-            ],
             columnTransformer: <GeneratedColumn<Object>, Expression<Object>>{
-              healthEvents.eventStartTime: const CustomExpression<DateTime>(
-                'event_time',
-              ),
-              healthEvents.eventEndTime: const CustomExpression<DateTime>(
-                'event_time',
-              ),
               healthEvents.createdAt: const CustomExpression<DateTime>(
                 'event_time',
               ),
             },
           ),
         );
+      } else if (from < 4) {
+        await migrator.alterTable(TableMigration(healthEvents));
       }
     },
   );
 
   Future<List<HealthEvent>> getAllHealthEvents() {
     return (select(healthEvents)..orderBy(<OrderingTerm Function(HealthEvents)>[
-          (HealthEvents table) => OrderingTerm.desc(table.eventEndTime),
+          (HealthEvents table) => OrderingTerm.desc(table.createdAt),
         ]))
         .get();
   }
@@ -70,11 +62,11 @@ class AppDatabase extends _$AppDatabase {
     return (select(healthEvents)
           ..where(
             (HealthEvents table) =>
-                table.eventEndTime.isBiggerOrEqualValue(rangeStart) &
-                table.eventEndTime.isSmallerOrEqualValue(rangeEnd),
+                table.createdAt.isBiggerOrEqualValue(rangeStart) &
+                table.createdAt.isSmallerOrEqualValue(rangeEnd),
           )
           ..orderBy(<OrderingTerm Function(HealthEvents)>[
-            (HealthEvents table) => OrderingTerm.desc(table.eventEndTime),
+            (HealthEvents table) => OrderingTerm.desc(table.createdAt),
           ]))
         .get();
   }

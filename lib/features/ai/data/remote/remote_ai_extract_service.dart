@@ -1,3 +1,7 @@
+import 'dart:developer' as developer;
+
+import 'package:ai_case_assistant/core/constants/health_record_limits.dart';
+import 'package:ai_case_assistant/features/ai/data/remote/event_time_formatter.dart';
 import 'package:ai_case_assistant/features/ai/domain/exceptions/ai_extract_exception.dart';
 import 'package:ai_case_assistant/features/ai/domain/services/ai_extract_service.dart';
 import 'package:dio/dio.dart';
@@ -9,23 +13,33 @@ class RemoteAiExtractService implements AiExtractService {
   final Dio _dio;
 
   @override
-  Future<AiExtractResult> extractFromRawText({required String rawText}) async {
+  Future<AiExtractResult> extractFromRawText({
+    required String rawText,
+    required DateTime eventTime,
+  }) async {
     final String normalizedRawText = rawText.trim();
-    if (normalizedRawText.isEmpty) {
-      throw const AiExtractException(
-        type: AiExtractExceptionType.invalidResponsePayload,
-        message: '提取结果无效，请稍后重试。',
-      );
-    }
+    final String formattedEventTime = formatEventTimeForApi(eventTime);
+    _validateRawText(normalizedRawText);
 
     try {
+      developer.log(
+        'POST /ai/extract rawTextLength=${normalizedRawText.length} eventTime=$formattedEventTime',
+        name: 'RemoteAiExtractService',
+      );
       final Response<dynamic> response = await _dio.post<dynamic>(
         '/ai/extract',
-        data: <String, String>{'rawText': normalizedRawText},
+        data: <String, String>{
+          'rawText': normalizedRawText,
+          'eventTime': formattedEventTime,
+        },
       );
 
       final dynamic responseData = response.data;
       if (responseData is! Map<String, dynamic>) {
+        developer.log(
+          'POST /ai/extract invalidResponse payloadType=${responseData.runtimeType}',
+          name: 'RemoteAiExtractService',
+        );
         throw const AiExtractException(
           type: AiExtractExceptionType.invalidResponsePayload,
           message: '提取结果无效，请稍后重试。',
@@ -38,30 +52,34 @@ class RemoteAiExtractService implements AiExtractService {
       final String symptomSummary =
           remoteSymptomSummary ??
           _buildFallbackSymptomSummary(normalizedRawText);
-      final DateTime eventStartTime = _readRequiredDateTime(
-        responseData['eventStartTime'],
+
+      developer.log(
+        'POST /ai/extract success summaryLength=${symptomSummary.length} notesLength=${_safeTextLength(responseData['notes'])}',
+        name: 'RemoteAiExtractService',
       );
-      final DateTime eventEndTime = _readRequiredDateTime(
-        responseData['eventEndTime'],
-      );
-      if (eventStartTime.isAfter(eventEndTime)) {
-        throw const AiExtractException(
-          type: AiExtractExceptionType.invalidResponsePayload,
-          message: '提取结果无效，请稍后重试。',
-        );
-      }
 
       return AiExtractResult(
         symptomSummary: symptomSummary,
         notes: _readValidText(responseData['notes']),
-        eventStartTime: eventStartTime,
-        eventEndTime: eventEndTime,
       );
     } on AiExtractException {
       rethrow;
     } on DioException catch (exception) {
+      developer.log(
+        'POST /ai/extract dioFailure type=${exception.type} statusCode=${exception.response?.statusCode} '
+        'message=${exception.message} error=${exception.error}',
+        name: 'RemoteAiExtractService',
+        error: exception,
+        stackTrace: exception.stackTrace,
+      );
       throw _mapDioException(exception);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      developer.log(
+        'POST /ai/extract unexpectedFailure type=${error.runtimeType} message=$error',
+        name: 'RemoteAiExtractService',
+        error: error,
+        stackTrace: stackTrace,
+      );
       throw const AiExtractException(
         type: AiExtractExceptionType.unknown,
         message: '提取失败，请稍后重试。',
@@ -82,33 +100,6 @@ class RemoteAiExtractService implements AiExtractService {
     return normalizedValue;
   }
 
-  DateTime _readRequiredDateTime(dynamic value) {
-    if (value is! String) {
-      throw const AiExtractException(
-        type: AiExtractExceptionType.invalidResponsePayload,
-        message: '提取结果无效，请稍后重试。',
-      );
-    }
-
-    final String normalizedValue = value.trim();
-    if (normalizedValue.isEmpty) {
-      throw const AiExtractException(
-        type: AiExtractExceptionType.invalidResponsePayload,
-        message: '提取结果无效，请稍后重试。',
-      );
-    }
-
-    final DateTime? parsed = DateTime.tryParse(normalizedValue);
-    if (parsed == null) {
-      throw const AiExtractException(
-        type: AiExtractExceptionType.invalidResponsePayload,
-        message: '提取结果无效，请稍后重试。',
-      );
-    }
-
-    return parsed;
-  }
-
   String _buildFallbackSymptomSummary(String rawText) {
     final String firstSegment = rawText
         .split(RegExp(r'[。！？?!]+'))
@@ -126,6 +117,22 @@ class RemoteAiExtractService implements AiExtractService {
     }
 
     return '${value.substring(0, maxLength)}...';
+  }
+
+  void _validateRawText(String normalizedRawText) {
+    if (normalizedRawText.isEmpty) {
+      throw const AiExtractException(
+        type: AiExtractExceptionType.invalidRequestPayload,
+        message: '请输入原始描述',
+      );
+    }
+
+    if (normalizedRawText.length > healthRecordRawTextMaxLength) {
+      throw const AiExtractException(
+        type: AiExtractExceptionType.invalidRequestPayload,
+        message: '原始描述不能超过1000字',
+      );
+    }
   }
 
   AiExtractException _mapDioException(DioException exception) {
@@ -152,5 +159,13 @@ class RemoteAiExtractService implements AiExtractService {
           message: '提取失败，请稍后重试。',
         );
     }
+  }
+
+  int _safeTextLength(dynamic value) {
+    if (value is! String) {
+      return -1;
+    }
+
+    return value.trim().length;
   }
 }

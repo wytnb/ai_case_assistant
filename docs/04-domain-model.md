@@ -24,14 +24,12 @@
 | 字段 | 类型 | 含义 | 是否必填 | 备注 |
 |---|---|---|---|---|
 | `id` | `String` | 业务主键 UUID | 是 | 客户端生成 |
-| `eventStartTime` | `DateTime` | 事件开始时间 | 是 | 来自 AI 提取 |
-| `eventEndTime` | `DateTime` | 事件结束时间 | 是 | 来自 AI 提取 |
 | `sourceType` | `String` | 来源类型 | 是 | 当前固定为 `text` |
 | `rawText` | `String?` | 用户原始描述 | 否 | 当前创建链路实际都会写入 |
 | `symptomSummary` | `String?` | AI 摘要 | 否 | 提取缺失时可回退为 `rawText` 首句 |
 | `notes` | `String?` | AI 备注 | 否 | 缺失时保持空值 |
-| `createdAt` | `DateTime` | 记录创建时间 | 是 | 客户端写入 |
-| `updatedAt` | `DateTime` | 记录更新时间 | 是 | 当前与创建时一致 |
+| `createdAt` | `DateTime` | 事件时间 / 记录创建时间 | 是 | 创建链路中与 `eventTime` 语义一致 |
+| `updatedAt` | `DateTime` | 记录更新时间 | 是 | 当前创建时与 `createdAt` 相同 |
 
 ### `Attachment`
 
@@ -49,8 +47,17 @@
 |---|---|---|---|---|
 | `symptomSummary` | `String` | 提取摘要 | 是 | 客户端会兜底生成 |
 | `notes` | `String?` | 提取备注 | 否 | 缺失时返回 `null` |
-| `eventStartTime` | `DateTime` | 事件开始时间 | 是 | 必须可解析 |
-| `eventEndTime` | `DateTime` | 事件结束时间 | 是 | 必须可解析 |
+
+### `AiReportEvent`
+
+| 字段 | 类型 | 含义 | 是否必填 | 备注 |
+|---|---|---|---|---|
+| `id` | `String` | 记录 ID | 是 | 来自 `HealthEvent.id` |
+| `eventTime` | `DateTime` | 事件时间 | 是 | 从 `HealthEvent.createdAt` 映射 |
+| `sourceType` | `String` | 来源类型 | 是 | 当前固定为 `text` |
+| `rawText` | `String?` | 原始文本 | 否 | 发送前会截断到最多 500 字符 |
+| `symptomSummary` | `String?` | 摘要 | 否 | 空白转 `null` |
+| `notes` | `String?` | 备注 | 否 | 空白转 `null` |
 
 ### `Report`
 
@@ -87,7 +94,7 @@
 ## 不变量
 
 - `HealthEvent.id`、`Attachment.id`、`Report.id` 使用字符串 UUID
-- `eventStartTime` 不得晚于 `eventEndTime`
+- `HealthEvent.createdAt == eventTime`，且创建时 `HealthEvent.updatedAt == HealthEvent.createdAt`
 - `Attachment.healthEventId` 必须指向已有 `HealthEvent`
 - `Attachment.filePath` 指向已复制到应用私有目录的路径
 - `Report` 以 `reportType + rangeStart + rangeEnd` 作为逻辑唯一范围
@@ -97,4 +104,3 @@
 
 - 未来若引入独立提取结果表，`AiExtractResult` 是否仍折叠到 `HealthEvent` 中待确认
 - 未来若支持文本 + 图片混合来源，`sourceType` 是否扩展为更多枚举待确认
-

@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
+import 'package:ai_case_assistant/core/constants/health_record_limits.dart';
 import 'package:ai_case_assistant/core/database/app_database.dart';
 import 'package:ai_case_assistant/core/database/app_database_provider.dart';
+import 'package:ai_case_assistant/features/ai/domain/exceptions/ai_extract_exception.dart';
 import 'package:ai_case_assistant/features/ai/domain/services/ai_extract_service.dart';
 import 'package:ai_case_assistant/features/ai/presentation/providers/ai_extract_service_provider.dart';
 import 'package:ai_case_assistant/features/health_record/data/local/health_record_attachment_storage.dart';
@@ -51,6 +54,8 @@ createHealthRecordControllerProvider =
     );
 
 class HealthRecordService {
+  static const int rawTextMaxLength = healthRecordRawTextMaxLength;
+
   HealthRecordService({
     required AppDatabase database,
     required AiExtractService aiExtractService,
@@ -68,15 +73,26 @@ class HealthRecordService {
     required String rawText,
     List<String> attachmentSourcePaths = const <String>[],
   }) async {
-    final String healthEventId = _uuid.v4();
-    final DateTime now = DateTime.now();
+    final DateTime now = _truncateToSeconds(DateTime.now());
     final String normalizedRawText = rawText.trim();
+    _validateRawText(normalizedRawText);
+    final String healthEventId = _uuid.v4();
+    developer.log(
+      'createHealthRecord started id=$healthEventId rawTextLength=${normalizedRawText.length} '
+      'attachmentCount=${attachmentSourcePaths.length} eventTime=$now',
+      name: 'HealthRecordService',
+    );
     final AiExtractResult extractResult = await _aiExtractService
-        .extractFromRawText(rawText: normalizedRawText);
+        .extractFromRawText(rawText: normalizedRawText, eventTime: now);
     final String? normalizedSymptomSummary = _normalizeOptionalText(
       extractResult.symptomSummary,
     );
     final String? normalizedNotes = _normalizeOptionalText(extractResult.notes);
+    developer.log(
+      'createHealthRecord aiExtracted id=$healthEventId summaryLength=${normalizedSymptomSummary?.length ?? 0} '
+      'notesLength=${normalizedNotes?.length ?? 0}',
+      name: 'HealthRecordService',
+    );
 
     final List<String> copiedFilePaths = <String>[];
     final List<AttachmentsCompanion> attachmentCompanions =
@@ -107,8 +123,6 @@ class HealthRecordService {
         await _database.insertHealthEvent(
           HealthEventsCompanion(
             id: Value<String>(healthEventId),
-            eventStartTime: Value<DateTime>(extractResult.eventStartTime),
-            eventEndTime: Value<DateTime>(extractResult.eventEndTime),
             sourceType: const Value<String>('text'),
             rawText: Value<String>(normalizedRawText),
             symptomSummary: normalizedSymptomSummary == null
@@ -126,7 +140,17 @@ class HealthRecordService {
           await _database.insertAttachment(attachment);
         }
       });
-    } catch (_) {
+      developer.log(
+        'createHealthRecord persisted id=$healthEventId attachmentCount=${attachmentCompanions.length}',
+        name: 'HealthRecordService',
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'createHealthRecord failed id=$healthEventId type=${error.runtimeType} message=$error',
+        name: 'HealthRecordService',
+        error: error,
+        stackTrace: stackTrace,
+      );
       await _attachmentStorage.deleteStoredAttachments(copiedFilePaths);
       rethrow;
     }
@@ -157,6 +181,29 @@ class HealthRecordService {
     }
 
     return normalized;
+  }
+
+  void _validateRawText(String normalizedRawText) {
+    if (normalizedRawText.isEmpty) {
+      throw const AiExtractException(
+        type: AiExtractExceptionType.invalidRequestPayload,
+        message: '请输入原始描述',
+      );
+    }
+
+    if (normalizedRawText.length > rawTextMaxLength) {
+      throw const AiExtractException(
+        type: AiExtractExceptionType.invalidRequestPayload,
+        message: '原始描述不能超过1000字',
+      );
+    }
+  }
+
+  DateTime _truncateToSeconds(DateTime value) {
+    return DateTime.fromMillisecondsSinceEpoch(
+      value.millisecondsSinceEpoch ~/ 1000 * 1000,
+      isUtc: value.isUtc,
+    );
   }
 }
 

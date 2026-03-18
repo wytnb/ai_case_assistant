@@ -18,29 +18,6 @@ class $HealthEventsTable extends HealthEvents
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _eventStartTimeMeta = const VerificationMeta(
-    'eventStartTime',
-  );
-  @override
-  late final GeneratedColumn<DateTime> eventStartTime =
-      GeneratedColumn<DateTime>(
-        'event_start_time',
-        aliasedName,
-        false,
-        type: DriftSqlType.dateTime,
-        requiredDuringInsert: true,
-      );
-  static const VerificationMeta _eventEndTimeMeta = const VerificationMeta(
-    'eventEndTime',
-  );
-  @override
-  late final GeneratedColumn<DateTime> eventEndTime = GeneratedColumn<DateTime>(
-    'event_end_time',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
   static const VerificationMeta _sourceTypeMeta = const VerificationMeta(
     'sourceType',
   );
@@ -108,8 +85,6 @@ class $HealthEventsTable extends HealthEvents
   @override
   List<GeneratedColumn> get $columns => [
     id,
-    eventStartTime,
-    eventEndTime,
     sourceType,
     rawText,
     symptomSummary,
@@ -133,28 +108,6 @@ class $HealthEventsTable extends HealthEvents
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
       context.missing(_idMeta);
-    }
-    if (data.containsKey('event_start_time')) {
-      context.handle(
-        _eventStartTimeMeta,
-        eventStartTime.isAcceptableOrUnknown(
-          data['event_start_time']!,
-          _eventStartTimeMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_eventStartTimeMeta);
-    }
-    if (data.containsKey('event_end_time')) {
-      context.handle(
-        _eventEndTimeMeta,
-        eventEndTime.isAcceptableOrUnknown(
-          data['event_end_time']!,
-          _eventEndTimeMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_eventEndTimeMeta);
     }
     if (data.containsKey('source_type')) {
       context.handle(
@@ -214,14 +167,6 @@ class $HealthEventsTable extends HealthEvents
         DriftSqlType.string,
         data['${effectivePrefix}id'],
       )!,
-      eventStartTime: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}event_start_time'],
-      )!,
-      eventEndTime: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}event_end_time'],
-      )!,
       sourceType: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}source_type'],
@@ -257,8 +202,6 @@ class $HealthEventsTable extends HealthEvents
 
 class HealthEvent extends DataClass implements Insertable<HealthEvent> {
   final String id;
-  final DateTime eventStartTime;
-  final DateTime eventEndTime;
   final String sourceType;
   final String? rawText;
   final String? symptomSummary;
@@ -267,8 +210,6 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
   final DateTime updatedAt;
   const HealthEvent({
     required this.id,
-    required this.eventStartTime,
-    required this.eventEndTime,
     required this.sourceType,
     this.rawText,
     this.symptomSummary,
@@ -280,8 +221,6 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
-    map['event_start_time'] = Variable<DateTime>(eventStartTime);
-    map['event_end_time'] = Variable<DateTime>(eventEndTime);
     map['source_type'] = Variable<String>(sourceType);
     if (!nullToAbsent || rawText != null) {
       map['raw_text'] = Variable<String>(rawText);
@@ -300,8 +239,6 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
   HealthEventsCompanion toCompanion(bool nullToAbsent) {
     return HealthEventsCompanion(
       id: Value(id),
-      eventStartTime: Value(eventStartTime),
-      eventEndTime: Value(eventEndTime),
       sourceType: Value(sourceType),
       rawText: rawText == null && nullToAbsent
           ? const Value.absent()
@@ -324,8 +261,6 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return HealthEvent(
       id: serializer.fromJson<String>(json['id']),
-      eventStartTime: serializer.fromJson<DateTime>(json['eventStartTime']),
-      eventEndTime: serializer.fromJson<DateTime>(json['eventEndTime']),
       sourceType: serializer.fromJson<String>(json['sourceType']),
       rawText: serializer.fromJson<String?>(json['rawText']),
       symptomSummary: serializer.fromJson<String?>(json['symptomSummary']),
@@ -339,8 +274,6 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
-      'eventStartTime': serializer.toJson<DateTime>(eventStartTime),
-      'eventEndTime': serializer.toJson<DateTime>(eventEndTime),
       'sourceType': serializer.toJson<String>(sourceType),
       'rawText': serializer.toJson<String?>(rawText),
       'symptomSummary': serializer.toJson<String?>(symptomSummary),
@@ -352,8 +285,6 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
 
   HealthEvent copyWith({
     String? id,
-    DateTime? eventStartTime,
-    DateTime? eventEndTime,
     String? sourceType,
     Value<String?> rawText = const Value.absent(),
     Value<String?> symptomSummary = const Value.absent(),
@@ -362,8 +293,6 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
     DateTime? updatedAt,
   }) => HealthEvent(
     id: id ?? this.id,
-    eventStartTime: eventStartTime ?? this.eventStartTime,
-    eventEndTime: eventEndTime ?? this.eventEndTime,
     sourceType: sourceType ?? this.sourceType,
     rawText: rawText.present ? rawText.value : this.rawText,
     symptomSummary: symptomSummary.present
@@ -376,12 +305,6 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
   HealthEvent copyWithCompanion(HealthEventsCompanion data) {
     return HealthEvent(
       id: data.id.present ? data.id.value : this.id,
-      eventStartTime: data.eventStartTime.present
-          ? data.eventStartTime.value
-          : this.eventStartTime,
-      eventEndTime: data.eventEndTime.present
-          ? data.eventEndTime.value
-          : this.eventEndTime,
       sourceType: data.sourceType.present
           ? data.sourceType.value
           : this.sourceType,
@@ -399,8 +322,6 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
   String toString() {
     return (StringBuffer('HealthEvent(')
           ..write('id: $id, ')
-          ..write('eventStartTime: $eventStartTime, ')
-          ..write('eventEndTime: $eventEndTime, ')
           ..write('sourceType: $sourceType, ')
           ..write('rawText: $rawText, ')
           ..write('symptomSummary: $symptomSummary, ')
@@ -414,8 +335,6 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
   @override
   int get hashCode => Object.hash(
     id,
-    eventStartTime,
-    eventEndTime,
     sourceType,
     rawText,
     symptomSummary,
@@ -428,8 +347,6 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
       identical(this, other) ||
       (other is HealthEvent &&
           other.id == this.id &&
-          other.eventStartTime == this.eventStartTime &&
-          other.eventEndTime == this.eventEndTime &&
           other.sourceType == this.sourceType &&
           other.rawText == this.rawText &&
           other.symptomSummary == this.symptomSummary &&
@@ -440,8 +357,6 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
 
 class HealthEventsCompanion extends UpdateCompanion<HealthEvent> {
   final Value<String> id;
-  final Value<DateTime> eventStartTime;
-  final Value<DateTime> eventEndTime;
   final Value<String> sourceType;
   final Value<String?> rawText;
   final Value<String?> symptomSummary;
@@ -451,8 +366,6 @@ class HealthEventsCompanion extends UpdateCompanion<HealthEvent> {
   final Value<int> rowid;
   const HealthEventsCompanion({
     this.id = const Value.absent(),
-    this.eventStartTime = const Value.absent(),
-    this.eventEndTime = const Value.absent(),
     this.sourceType = const Value.absent(),
     this.rawText = const Value.absent(),
     this.symptomSummary = const Value.absent(),
@@ -463,8 +376,6 @@ class HealthEventsCompanion extends UpdateCompanion<HealthEvent> {
   });
   HealthEventsCompanion.insert({
     required String id,
-    required DateTime eventStartTime,
-    required DateTime eventEndTime,
     required String sourceType,
     this.rawText = const Value.absent(),
     this.symptomSummary = const Value.absent(),
@@ -473,15 +384,11 @@ class HealthEventsCompanion extends UpdateCompanion<HealthEvent> {
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
-       eventStartTime = Value(eventStartTime),
-       eventEndTime = Value(eventEndTime),
        sourceType = Value(sourceType),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt);
   static Insertable<HealthEvent> custom({
     Expression<String>? id,
-    Expression<DateTime>? eventStartTime,
-    Expression<DateTime>? eventEndTime,
     Expression<String>? sourceType,
     Expression<String>? rawText,
     Expression<String>? symptomSummary,
@@ -492,8 +399,6 @@ class HealthEventsCompanion extends UpdateCompanion<HealthEvent> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
-      if (eventStartTime != null) 'event_start_time': eventStartTime,
-      if (eventEndTime != null) 'event_end_time': eventEndTime,
       if (sourceType != null) 'source_type': sourceType,
       if (rawText != null) 'raw_text': rawText,
       if (symptomSummary != null) 'symptom_summary': symptomSummary,
@@ -506,8 +411,6 @@ class HealthEventsCompanion extends UpdateCompanion<HealthEvent> {
 
   HealthEventsCompanion copyWith({
     Value<String>? id,
-    Value<DateTime>? eventStartTime,
-    Value<DateTime>? eventEndTime,
     Value<String>? sourceType,
     Value<String?>? rawText,
     Value<String?>? symptomSummary,
@@ -518,8 +421,6 @@ class HealthEventsCompanion extends UpdateCompanion<HealthEvent> {
   }) {
     return HealthEventsCompanion(
       id: id ?? this.id,
-      eventStartTime: eventStartTime ?? this.eventStartTime,
-      eventEndTime: eventEndTime ?? this.eventEndTime,
       sourceType: sourceType ?? this.sourceType,
       rawText: rawText ?? this.rawText,
       symptomSummary: symptomSummary ?? this.symptomSummary,
@@ -535,12 +436,6 @@ class HealthEventsCompanion extends UpdateCompanion<HealthEvent> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
-    }
-    if (eventStartTime.present) {
-      map['event_start_time'] = Variable<DateTime>(eventStartTime.value);
-    }
-    if (eventEndTime.present) {
-      map['event_end_time'] = Variable<DateTime>(eventEndTime.value);
     }
     if (sourceType.present) {
       map['source_type'] = Variable<String>(sourceType.value);
@@ -570,8 +465,6 @@ class HealthEventsCompanion extends UpdateCompanion<HealthEvent> {
   String toString() {
     return (StringBuffer('HealthEventsCompanion(')
           ..write('id: $id, ')
-          ..write('eventStartTime: $eventStartTime, ')
-          ..write('eventEndTime: $eventEndTime, ')
           ..write('sourceType: $sourceType, ')
           ..write('rawText: $rawText, ')
           ..write('symptomSummary: $symptomSummary, ')
@@ -1591,8 +1484,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
 typedef $$HealthEventsTableCreateCompanionBuilder =
     HealthEventsCompanion Function({
       required String id,
-      required DateTime eventStartTime,
-      required DateTime eventEndTime,
       required String sourceType,
       Value<String?> rawText,
       Value<String?> symptomSummary,
@@ -1604,8 +1495,6 @@ typedef $$HealthEventsTableCreateCompanionBuilder =
 typedef $$HealthEventsTableUpdateCompanionBuilder =
     HealthEventsCompanion Function({
       Value<String> id,
-      Value<DateTime> eventStartTime,
-      Value<DateTime> eventEndTime,
       Value<String> sourceType,
       Value<String?> rawText,
       Value<String?> symptomSummary,
@@ -1652,16 +1541,6 @@ class $$HealthEventsTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get eventStartTime => $composableBuilder(
-    column: $table.eventStartTime,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get eventEndTime => $composableBuilder(
-    column: $table.eventEndTime,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1735,16 +1614,6 @@ class $$HealthEventsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get eventStartTime => $composableBuilder(
-    column: $table.eventStartTime,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get eventEndTime => $composableBuilder(
-    column: $table.eventEndTime,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get sourceType => $composableBuilder(
     column: $table.sourceType,
     builder: (column) => ColumnOrderings(column),
@@ -1787,16 +1656,6 @@ class $$HealthEventsTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get eventStartTime => $composableBuilder(
-    column: $table.eventStartTime,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<DateTime> get eventEndTime => $composableBuilder(
-    column: $table.eventEndTime,
-    builder: (column) => column,
-  );
 
   GeneratedColumn<String> get sourceType => $composableBuilder(
     column: $table.sourceType,
@@ -1875,8 +1734,6 @@ class $$HealthEventsTableTableManager
           updateCompanionCallback:
               ({
                 Value<String> id = const Value.absent(),
-                Value<DateTime> eventStartTime = const Value.absent(),
-                Value<DateTime> eventEndTime = const Value.absent(),
                 Value<String> sourceType = const Value.absent(),
                 Value<String?> rawText = const Value.absent(),
                 Value<String?> symptomSummary = const Value.absent(),
@@ -1886,8 +1743,6 @@ class $$HealthEventsTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => HealthEventsCompanion(
                 id: id,
-                eventStartTime: eventStartTime,
-                eventEndTime: eventEndTime,
                 sourceType: sourceType,
                 rawText: rawText,
                 symptomSummary: symptomSummary,
@@ -1899,8 +1754,6 @@ class $$HealthEventsTableTableManager
           createCompanionCallback:
               ({
                 required String id,
-                required DateTime eventStartTime,
-                required DateTime eventEndTime,
                 required String sourceType,
                 Value<String?> rawText = const Value.absent(),
                 Value<String?> symptomSummary = const Value.absent(),
@@ -1910,8 +1763,6 @@ class $$HealthEventsTableTableManager
                 Value<int> rowid = const Value.absent(),
               }) => HealthEventsCompanion.insert(
                 id: id,
-                eventStartTime: eventStartTime,
-                eventEndTime: eventEndTime,
                 sourceType: sourceType,
                 rawText: rawText,
                 symptomSummary: symptomSummary,
