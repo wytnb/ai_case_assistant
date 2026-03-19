@@ -1,15 +1,116 @@
 import 'dart:ui';
 
+import 'package:ai_case_assistant/core/constants/legal_disclaimer_texts.dart';
 import 'package:ai_case_assistant/features/settings/presentation/providers/settings_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class HomePage extends ConsumerWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+  bool _isDisclaimerDialogVisible = false;
+
+  void _handleDisclaimerState(AsyncValue<bool> disclaimerAcceptedAsync) {
+    if (disclaimerAcceptedAsync.isLoading ||
+        disclaimerAcceptedAsync.valueOrNull != false ||
+        _isDisclaimerDialogVisible) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _isDisclaimerDialogVisible) {
+        return;
+      }
+      _showFirstUseDisclaimerDialog();
+    });
+  }
+
+  Future<void> _showFirstUseDisclaimerDialog() async {
+    _isDisclaimerDialogVisible = true;
+    bool checked = false;
+
+    try {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          return PopScope(
+            canPop: false,
+            child: StatefulBuilder(
+              builder: (BuildContext context, StateSetter setDialogState) {
+                return AlertDialog(
+                  title: const Text(firstUseDisclaimerTitle),
+                  content: SizedBox(
+                    width: double.maxFinite,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.62,
+                      ),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            const Text(firstUseDisclaimerIntro),
+                            const SizedBox(height: 12),
+                            const Text(firstUseDisclaimerBody),
+                            const SizedBox(height: 16),
+                            CheckboxListTile(
+                              contentPadding: EdgeInsets.zero,
+                              controlAffinity: ListTileControlAffinity.leading,
+                              value: checked,
+                              onChanged: (bool? value) {
+                                setDialogState(() {
+                                  checked = value ?? false;
+                                });
+                              },
+                              title: const Text(firstUseConsentCheckboxText),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  actions: <Widget>[
+                    FilledButton(
+                      onPressed: !checked
+                          ? null
+                          : () async {
+                              await ref
+                                  .read(
+                                    firstUseDisclaimerAcceptedProvider.notifier,
+                                  )
+                                  .setAccepted(true);
+                              if (dialogContext.mounted) {
+                                Navigator.of(dialogContext).pop();
+                              }
+                            },
+                      child: const Text('同意并继续'),
+                    ),
+                  ],
+                );
+              },
+            ),
+          );
+        },
+      );
+    } finally {
+      _isDisclaimerDialogVisible = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AsyncValue<bool> disclaimerAcceptedAsync = ref.watch(
+      firstUseDisclaimerAcceptedProvider,
+    );
+    _handleDisclaimerState(disclaimerAcceptedAsync);
+
     final AsyncValue<bool> followUpModeAsync = ref.watch(
       followUpModeEnabledProvider,
     );

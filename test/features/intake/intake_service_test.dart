@@ -28,6 +28,13 @@ void main() {
       expect(await repository.getFollowUpModeEnabled(), false);
     });
 
+    test(
+      'returns false when first_use_disclaimer_accepted is missing',
+      () async {
+        expect(await repository.getFirstUseDisclaimerAccepted(), false);
+      },
+    );
+
     test('persists follow_up_mode_enabled as a typed bool setting', () async {
       await repository.setFollowUpModeEnabled(true);
 
@@ -41,6 +48,57 @@ void main() {
       expect(stored.intValue, isNull);
       expect(await repository.getFollowUpModeEnabled(), true);
     });
+
+    test(
+      'persists first_use_disclaimer_accepted as typed bool and keeps created_at on overwrite',
+      () async {
+        await repository.setFirstUseDisclaimerAccepted(true);
+        final AppSetting? firstSaved = await database.getAppSettingByKey(
+          SettingsRepository.firstUseDisclaimerAcceptedKey,
+        );
+        await repository.setFirstUseDisclaimerAccepted(false);
+        final AppSetting? secondSaved = await database.getAppSettingByKey(
+          SettingsRepository.firstUseDisclaimerAcceptedKey,
+        );
+
+        expect(firstSaved, isNotNull);
+        expect(secondSaved, isNotNull);
+        expect(secondSaved!.valueType, 'bool');
+        expect(secondSaved.boolValue, false);
+        expect(secondSaved.createdAt, firstSaved!.createdAt);
+        expect(
+          secondSaved.updatedAt.isAtSameMomentAs(firstSaved.updatedAt) ||
+              secondSaved.updatedAt.isAfter(firstSaved.updatedAt),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'returns false when first_use_disclaimer_accepted has invalid type',
+      () async {
+        final DateTime now = DateTime.parse('2026-03-19T10:00:00.000');
+        await database.upsertAppSetting(
+          AppSettingsCompanion(
+            key: const Value<String>(
+              SettingsRepository.firstUseDisclaimerAcceptedKey,
+            ),
+            valueType: Value<String>(
+              AppSettingValueType.stringType.storageValue,
+            ),
+            boolValue: const Value<bool?>.absent(),
+            intValue: const Value<int?>.absent(),
+            doubleValue: const Value<double?>.absent(),
+            stringValue: const Value<String?>('invalid'),
+            jsonValue: const Value<String?>.absent(),
+            createdAt: Value<DateTime>(now),
+            updatedAt: Value<DateTime>(now),
+          ),
+        );
+
+        expect(await repository.getFirstUseDisclaimerAccepted(), false);
+      },
+    );
   });
 
   group('IntakeService', () {

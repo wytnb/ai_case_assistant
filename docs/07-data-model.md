@@ -12,7 +12,7 @@
 
 | 字段 | 类型 | 约束 | 说明 |
 |---|---|---|---|
-| `key` | TEXT | PK | 设置项唯一标识，例如 `follow_up_mode_enabled` |
+| `key` | TEXT | PK | 设置项唯一标识，例如 `follow_up_mode_enabled`、`first_use_disclaimer_accepted` |
 | `value_type` | TEXT | NOT NULL | 只能是 `bool/int/double/string/json` |
 | `bool_value` | INTEGER/BOOL | NULLABLE | 仅 `value_type=bool` 时可非空 |
 | `int_value` | INTEGER | NULLABLE | 仅 `value_type=int` 时可非空 |
@@ -130,6 +130,7 @@
 ## 兼容要求
 
 - 缺失 `follow_up_mode_enabled` 时，必须由 `SettingsRepository` 返回默认值 `false`。
+- 缺失或类型异常的 `first_use_disclaimer_accepted`，必须由 `SettingsRepository` 返回默认值 `false`。
 - 未完成追问不得出现在正式记录列表与报告查询中。
 - `symptom_summary`、`notes`、`action_advice` 允许为空字符串。
 - 旧 `/ai/extract` 历史记录在 schema 5 下仍可正常读取。

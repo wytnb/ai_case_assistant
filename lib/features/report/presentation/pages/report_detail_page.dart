@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:ai_case_assistant/core/database/app_database.dart';
+import 'package:ai_case_assistant/core/constants/legal_disclaimer_texts.dart';
 import 'package:ai_case_assistant/features/report/presentation/providers/report_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -62,6 +63,10 @@ class ReportDetailPage extends ConsumerWidget {
               _DetailSection(
                 title: '生成时间',
                 child: Text(_dateFormatter.format(report.generatedAt)),
+              ),
+              const _DetailSection(
+                title: '免责说明',
+                child: Text(reportFooterDisclaimerText),
               ),
             ],
           );

@@ -38,7 +38,7 @@
 | `stringValue` | `String?` | 普通字符串 | 仅 `valueType=string` 时可非空 |
 | `jsonValue` | `String?` | JSON 字符串 | 仅 `valueType=json` 时可非空 |
 | `createdAt` | `DateTime` | 首次创建时间 | 缺失 key 时不报错，由仓库层提供默认值 |
-| `updatedAt` | `DateTime` | 最后更新时间 | 当前已用 key 为 `follow_up_mode_enabled` |
+| `updatedAt` | `DateTime` | 最后更新时间 | 当前已用 key 为 `follow_up_mode_enabled`、`first_use_disclaimer_accepted` |
 
 ### `IntakeSession`
 
@@ -121,6 +121,7 @@
 
 - `AppSetting` 同一行只能有一个 value 列非空。
 - `follow_up_mode_enabled` 缺失时默认值为 `false`。
+- `first_use_disclaimer_accepted` 缺失或类型异常时默认值为 `false`。
 - `IntakeMessage.content` 经过 `trim()` 后不能为空。
 - 未完成追问不能写入 `health_events` 或报告输入。
 - `symptomSummary` 只要字段存在且类型为字符串，就保留原值，哪怕为空或很短。

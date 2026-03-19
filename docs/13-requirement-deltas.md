@@ -6,6 +6,34 @@
 
 ## 变更记录
 
+### 2026-03-19 - 首次免责强制同意与报告详情页尾免责提示
+
+- 原需求：
+  - 首次进入首页无需阅读并同意免责说明即可继续使用功能
+  - 报告详情页没有固定免责提示
+- 新需求：
+  - 首次进入系统时必须弹出免责说明，用户勾选同意后才能继续使用首页入口
+  - `first_use_disclaimer_accepted` 通过 `app_settings` 持久化，缺失或类型异常按未同意处理
+  - 报告详情页 `/reports/:id` 末尾固定展示免责说明
+- 变更原因：
+  - 明确产品责任边界与 AI 辅助定位，降低用户将 AI 输出当作诊疗结论的风险
+- 影响范围：
+  - `README.md`
+  - `docs/02-04`
+  - `docs/07-08`
+  - `docs/10-11`
+  - `lib/app/presentation/pages/home_page.dart`
+  - `lib/features/settings/`
+  - `lib/features/report/presentation/pages/report_detail_page.dart`
+  - 相关 widget / repository 测试
+- 需要补的测试：
+  - 首页首次免责弹窗（happy/boundary/failure）
+  - `first_use_disclaimer_accepted` 读写与异常类型回退
+  - 报告详情页尾免责说明展示
+- 风险：
+  - 弹窗文案较长，需关注小屏滚动可读性
+  - 首次同意写入失败时会持续阻断首页入口
+
 ### 2026-03-19 - 客户端本地追问会话与 `/ai/intake` 主链路落地
 
 - 原需求：

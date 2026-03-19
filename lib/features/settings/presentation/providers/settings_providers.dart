@@ -15,6 +15,12 @@ followUpModeEnabledProvider =
       FollowUpModeController.new,
     );
 
+final AsyncNotifierProvider<FirstUseDisclaimerController, bool>
+firstUseDisclaimerAcceptedProvider =
+    AsyncNotifierProvider<FirstUseDisclaimerController, bool>(
+      FirstUseDisclaimerController.new,
+    );
+
 class FollowUpModeController extends AsyncNotifier<bool> {
   @override
   FutureOr<bool> build() {
@@ -24,6 +30,21 @@ class FollowUpModeController extends AsyncNotifier<bool> {
   Future<void> setEnabled(bool value) async {
     state = AsyncData<bool>(value);
     await ref.read(settingsRepositoryProvider).setFollowUpModeEnabled(value);
+    state = AsyncData<bool>(value);
+  }
+}
+
+class FirstUseDisclaimerController extends AsyncNotifier<bool> {
+  @override
+  FutureOr<bool> build() {
+    return ref.read(settingsRepositoryProvider).getFirstUseDisclaimerAccepted();
+  }
+
+  Future<void> setAccepted(bool value) async {
+    state = AsyncData<bool>(value);
+    await ref
+        .read(settingsRepositoryProvider)
+        .setFirstUseDisclaimerAccepted(value);
     state = AsyncData<bool>(value);
   }
 }

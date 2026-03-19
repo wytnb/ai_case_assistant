@@ -19,33 +19,53 @@ class SettingsRepository {
   SettingsRepository({required AppDatabase database}) : _database = database;
 
   static const String followUpModeEnabledKey = 'follow_up_mode_enabled';
+  static const String firstUseDisclaimerAcceptedKey =
+      'first_use_disclaimer_accepted';
 
   final AppDatabase _database;
 
   Future<bool> getFollowUpModeEnabled() async {
-    final AppSetting? setting = await _database.getAppSettingByKey(
-      followUpModeEnabledKey,
+    return _getBoolValue(key: followUpModeEnabledKey, defaultValue: false);
+  }
+
+  Future<bool> getFirstUseDisclaimerAccepted() async {
+    return _getBoolValue(
+      key: firstUseDisclaimerAcceptedKey,
+      defaultValue: false,
     );
+  }
+
+  Future<void> setFollowUpModeEnabled(bool value) async {
+    await _setBoolValue(key: followUpModeEnabledKey, value: value);
+  }
+
+  Future<void> setFirstUseDisclaimerAccepted(bool value) async {
+    await _setBoolValue(key: firstUseDisclaimerAcceptedKey, value: value);
+  }
+
+  Future<bool> _getBoolValue({
+    required String key,
+    required bool defaultValue,
+  }) async {
+    final AppSetting? setting = await _database.getAppSettingByKey(key);
     if (setting == null) {
-      return false;
+      return defaultValue;
     }
 
     if (setting.valueType != AppSettingValueType.boolType.storageValue ||
         setting.boolValue == null) {
-      return false;
+      return defaultValue;
     }
 
     return setting.boolValue!;
   }
 
-  Future<void> setFollowUpModeEnabled(bool value) async {
+  Future<void> _setBoolValue({required String key, required bool value}) async {
     final DateTime now = _truncateToSeconds(DateTime.now());
-    final AppSetting? existing = await _database.getAppSettingByKey(
-      followUpModeEnabledKey,
-    );
+    final AppSetting? existing = await _database.getAppSettingByKey(key);
     await _database.upsertAppSetting(
       AppSettingsCompanion(
-        key: const Value<String>(followUpModeEnabledKey),
+        key: Value<String>(key),
         valueType: Value<String>(AppSettingValueType.boolType.storageValue),
         boolValue: Value<bool?>(value),
         intValue: const Value<int?>.absent(),

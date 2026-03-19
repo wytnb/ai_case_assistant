@@ -6,6 +6,7 @@
 
 - 首页提供主入口与“追问模式”开关。
 - “追问模式”开关通过本地 `app_settings` 持久化，缺失设置时默认 `false`。
+- 首次进入应用必须完成免责说明勾选与同意，未同意前不能继续使用首页。
 - 新增记录默认走 `POST /ai/intake`，请求带 `followUpMode`、`forceFinalize`、`eventTime`、完整 `messages`。
 - 用户可在新增记录页输入 `rawText` 并可选选择图片附件。
 - 当 `followUpMode=false` 时，worker 应直接返回 `final`，客户端直接生成正式记录。
@@ -14,6 +15,7 @@
 - 正式记录与未完成追问草稿严格分离存储；未完成内容只落 `intake_*` 表，不进入 `health_events` 与报告查询。
 - 正式记录详情页展示 `rawText`、`symptomSummary`、`notes`、`actionAdvice` 与附件。
 - 报告页可生成 `week`、`month`、`quarter` 报告，且只基于正式 `health_events`。
+- 报告详情页末尾固定展示免责说明，不依赖报告内容是否为空。
 - 旧 `POST /ai/extract` 仍保留，用于兼容旧链路和回归测试。
 
 ## 当前不做

@@ -1,6 +1,7 @@
 import 'package:ai_case_assistant/app/app.dart';
 import 'package:ai_case_assistant/core/database/app_database.dart';
 import 'package:ai_case_assistant/core/database/app_database_provider.dart';
+import 'package:ai_case_assistant/features/settings/data/settings_repository.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +13,10 @@ void main() {
   ) async {
     final AppDatabase database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
+    final SettingsRepository settingsRepository = SettingsRepository(
+      database: database,
+    );
+    await settingsRepository.setFirstUseDisclaimerAccepted(true);
 
     await tester.pumpWidget(
       ProviderScope(
