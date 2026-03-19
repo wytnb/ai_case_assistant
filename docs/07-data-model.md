@@ -3,103 +3,133 @@
 ## 存储清单
 
 - Drift 数据库文件：`app_database.sqlite`
-- 数据库表：`health_events`、`attachments`、`reports`
-- 本地文件目录：`<documents>/health_records/<healthEventId>/attachments/`
+- 正式附件目录：`<documents>/health_records/<healthEventId>/attachments/`
+- 追问暂存附件目录：`<documents>/intake_sessions/<sessionId>/attachments/`
 
-## 结构定义
+## 表结构
+
+### 表：`app_settings`
+
+| 字段 | 类型 | 约束 | 说明 |
+|---|---|---|---|
+| `key` | TEXT | PK | 设置项唯一标识，例如 `follow_up_mode_enabled` |
+| `value_type` | TEXT | NOT NULL | 只能是 `bool/int/double/string/json` |
+| `bool_value` | INTEGER/BOOL | NULLABLE | 仅 `value_type=bool` 时可非空 |
+| `int_value` | INTEGER | NULLABLE | 仅 `value_type=int` 时可非空 |
+| `double_value` | REAL | NULLABLE | 仅 `value_type=double` 时可非空 |
+| `string_value` | TEXT | NULLABLE | 仅 `value_type=string` 时可非空 |
+| `json_value` | TEXT | NULLABLE | 仅 `value_type=json` 时可非空 |
+| `created_at` | INTEGER/DATETIME | NOT NULL | 首次创建时间 |
+| `updated_at` | INTEGER/DATETIME | NOT NULL | 最后更新时间 |
+
+表级约束：
+
+- `value_type` 必须在允许枚举内。
+- 同一行五个 value 列只能有一个非空，并且必须与 `value_type` 对应。
+
+### 表：`intake_sessions`
+
+| 字段 | 类型 | 约束 | 说明 |
+|---|---|---|---|
+| `id` | TEXT | PK | 追问会话 ID，UUID |
+| `health_event_id` | TEXT | NULLABLE | 正式记录 ID，完成后回填 |
+| `event_time` | INTEGER/DATETIME | NOT NULL | 本次记录的业务时间锚点 |
+| `follow_up_mode_snapshot` | INTEGER/BOOL | NOT NULL | 创建会话时的首页开关快照 |
+| `status` | TEXT | NOT NULL | `questioning/awaiting_user_input/finalized/finalized_by_force` |
+| `initial_raw_text` | TEXT | NOT NULL | 用户第一次提交的原始描述 |
+| `merged_raw_text` | TEXT | NULLABLE | 当前轮合并后的描述 |
+| `latest_question` | TEXT | NULLABLE | 最近一次 AI 问题 |
+| `draft_symptom_summary` | TEXT | NULLABLE | 当前轮摘要草稿 |
+| `draft_notes` | TEXT | NULLABLE | 当前轮备注草稿 |
+| `draft_action_advice` | TEXT | NULLABLE | 当前轮建议草稿 |
+| `created_at` | INTEGER/DATETIME | NOT NULL | 会话创建时间 |
+| `updated_at` | INTEGER/DATETIME | NOT NULL | 会话最后更新时间 |
+
+### 表：`intake_messages`
+
+| 字段 | 类型 | 约束 | 说明 |
+|---|---|---|---|
+| `id` | TEXT | PK | 消息 ID，UUID |
+| `session_id` | TEXT | FK -> `intake_sessions.id` | 所属会话 |
+| `seq` | INTEGER | NOT NULL | 会话内顺序号 |
+| `role` | TEXT | NOT NULL | `user` / `assistant` |
+| `content` | TEXT | NOT NULL | 消息正文 |
+| `created_at` | INTEGER/DATETIME | NOT NULL | 创建时间 |
+
+索引 / 唯一约束：
+
+- `(session_id, seq)` 唯一。
+
+### 表：`intake_session_attachments`
+
+| 字段 | 类型 | 约束 | 说明 |
+|---|---|---|---|
+| `id` | TEXT | PK | 暂存附件 ID，UUID |
+| `session_id` | TEXT | FK -> `intake_sessions.id` | 所属会话 |
+| `file_path` | TEXT | NOT NULL | 暂存文件路径 |
+| `file_type` | TEXT | NOT NULL | 当前固定为 `image` |
+| `created_at` | INTEGER/DATETIME | NOT NULL | 创建时间 |
 
 ### 表：`health_events`
 
-| 字段 | 类型 | 约束 | 默认值 | 说明 |
-|---|---|---|---|---|
-| `id` | TEXT | PK | 无 | 业务 UUID |
-| `source_type` | TEXT | NOT NULL | 无 | 当前固定为 `text` |
-| `raw_text` | TEXT | NULLABLE | `NULL` | 原始描述 |
-| `symptom_summary` | TEXT | NULLABLE | `NULL` | AI 摘要 |
-| `notes` | TEXT | NULLABLE | `NULL` | AI 备注 |
-| `created_at` | INTEGER / DATETIME | NOT NULL | 无 | 记录创建时间，同时作为业务语义上的 `eventTime` |
-| `updated_at` | INTEGER / DATETIME | NOT NULL | 无 | 记录更新时间；创建时与 `created_at` 相同 |
+| 字段 | 类型 | 约束 | 说明 |
+|---|---|---|---|
+| `id` | TEXT | PK | 正式记录 ID |
+| `source_type` | TEXT | NOT NULL | 当前固定为 `text` |
+| `raw_text` | TEXT | NULLABLE | 正式记录原始描述 |
+| `symptom_summary` | TEXT | NULLABLE | 正式记录摘要 |
+| `notes` | TEXT | NULLABLE | 正式记录备注 |
+| `action_advice` | TEXT | NULLABLE | 正式记录建议 |
+| `created_at` | INTEGER/DATETIME | NOT NULL | 正式记录创建时间 |
+| `updated_at` | INTEGER/DATETIME | NOT NULL | 正式记录最后更新时间 |
 
-补充事实：
+补充规则：
 
-- `eventTime` 是业务字段名，不单独持久化为 `event_time` 列。
-- 当前实现中，新增记录时先取一次客户端本地时间，再同时写入 `created_at` 与 `updated_at`。
-- 历史上的 `event_start_time` / `event_end_time` 已从当前 schema 中移除。
+- 首次 finalize 时：`created_at = updated_at = session.event_time`
+- 重新追问更新原记录时：保留原 `created_at`，只刷新 `updated_at`
 
 ### 表：`attachments`
 
-| 字段 | 类型 | 约束 | 默认值 | 说明 |
-|---|---|---|---|---|
-| `id` | TEXT | PK | 无 | 业务 UUID |
-| `health_event_id` | TEXT | FK -> `health_events.id` | 无 | 所属记录 |
-| `file_path` | TEXT | NOT NULL | 无 | 复制后的本地路径 |
-| `file_type` | TEXT | NOT NULL | 无 | 当前固定为 `image` |
-| `created_at` | INTEGER / DATETIME | NOT NULL | 无 | 附件记录创建时间 |
+| 字段 | 类型 | 约束 | 说明 |
+|---|---|---|---|
+| `id` | TEXT | PK | 附件 ID |
+| `health_event_id` | TEXT | FK -> `health_events.id` | 所属正式记录 |
+| `file_path` | TEXT | NOT NULL | 转正后的文件路径 |
+| `file_type` | TEXT | NOT NULL | 当前固定为 `image` |
+| `created_at` | INTEGER/DATETIME | NOT NULL | 创建时间 |
 
 ### 表：`reports`
 
-| 字段 | 类型 | 约束 | 默认值 | 说明 |
-|---|---|---|---|---|
-| `id` | TEXT | PK | 无 | 业务 UUID |
-| `report_type` | TEXT | NOT NULL | 无 | `week` / `month` / `quarter` |
-| `range_start` | INTEGER / DATETIME | NOT NULL | 无 | 报告起始时间 |
-| `range_end` | INTEGER / DATETIME | NOT NULL | 无 | 报告结束时间 |
-| `title` | TEXT | NOT NULL | 无 | 报告标题 |
-| `summary` | TEXT | NOT NULL | 无 | 报告摘要 |
-| `advice_json` | TEXT | NOT NULL | 无 | 建议数组的 JSON 字符串 |
-| `markdown` | TEXT | NOT NULL | 无 | Markdown 正文 |
-| `generated_at` | INTEGER / DATETIME | NOT NULL | 无 | 本次生成时间 |
-| `created_at` | INTEGER / DATETIME | NOT NULL | 无 | 首次落库时间 |
-
-## 索引
-
-当前代码中没有额外声明二级索引或唯一索引。
-
-| 名称 | 类型 | 字段 | 用途 |
-|---|---|---|---|
-| `health_events` 主键 | 主键 | `id` | 记录唯一标识 |
-| `attachments` 主键 | 主键 | `id` | 附件唯一标识 |
-| `reports` 主键 | 主键 | `id` | 报告唯一标识 |
-
-补充事实：
-
-- `attachments.health_event_id` 存在外键引用。
-- 列表查询与报告源记录查询当前都按 `health_events.created_at` 倒序或范围过滤。
+当前结构未因本次追问能力而变化，但报告查询改为只读取正式 `health_events`。
 
 ## 迁移策略
 
-- 当前 `schemaVersion = 4`
-- `from < 2`：创建 `reports` 表
-- `from < 3`：将旧 `health_events.event_time` 迁移到新的 `created_at`
-- `from < 4`：重建 `health_events` 表结构，移除 `event_start_time` / `event_end_time`
+- 当前 `schemaVersion = 5`
+- `from < 2`
+  - 创建 `reports`
+- `from < 3`
+  - 将旧 `health_events.event_time` 迁移为 `health_events.created_at`
+- `from < 5`
+  - 对 `health_events` 做表迁移，新增 `action_advice`
+  - 创建 `app_settings`
+  - 创建 `intake_sessions`
+  - 创建 `intake_messages`
+  - 创建 `intake_session_attachments`
 
 补充事实：
 
-- schema 2 迁移到 schema 4 后，旧 `event_time` 不再保留为独立列，历史记录的业务 `eventTime` 语义直接由 `created_at` 承接。
-- schema 3 迁移到 schema 4 后，保留原有 `created_at` / `updated_at`，仅删除开始/结束时间列。
-- 当前没有独立 SQL 迁移文件，迁移逻辑写在 `AppDatabase.migration` 中。
+- 历史记录迁移后 `health_events.action_advice` 默认为 `NULL`。
+- 迁移不会为历史 `/ai/extract` 记录补建 intake session。
 
-## 删除策略
+## 删除与清理策略
 
-- 当前没有记录删除或报告删除的用户入口
-- 新增记录失败时，已复制的附件文件会立即回滚删除
-- 报告重复生成时，保留最新写入结果并删除同范围冗余记录
-- 当前没有“卸载前导出”或“定时清理旧附件”的策略
+- 当前没有用户可见的记录删除入口。
+- 会话完成后，暂存附件会转正为正式附件；未完成会话仍保留暂存附件。
+- 报告重复生成时，保留最新结果并清理同范围旧结果。
 
 ## 兼容要求
 
-- 旧版本数据若仍使用 `event_time`，升级到 schema 4 时必须可迁移
-- schema 3 中的 `event_start_time` / `event_end_time` 升级到 schema 4 时必须被移除
-- `rawText`、`symptomSummary`、`notes` 允许为空
-- `eventTime` 不单独存库，所有新旧记录都以 `created_at` 作为单一时间事实源
-- `adviceJson` 即使内容损坏，详情页也不能崩溃，只能降级为空建议列表
-- 附件路径必须指向应用仍可访问的文件；文件失效时页面需降级提示
-
-## 测试关注点
-
-- 迁移测试：验证 schema 2 的 `event_time` 升级后映射到 `createdAt`
-- 迁移测试：验证 schema 3 升级后删除 `event_start_time` / `event_end_time`
-- 创建测试：验证同一个 `eventTime` 同时写入 `createdAt` / `updatedAt`
-- 排序测试：记录列表按 `createdAt` 倒序
-- 范围测试：报告源记录按 `createdAt` 落入范围筛选
-- 空值测试：`notes` 缺失时仍可成功保存并在详情页显示空状态
+- 缺失 `follow_up_mode_enabled` 时，必须由 `SettingsRepository` 返回默认值 `false`。
+- 未完成追问不得出现在正式记录列表与报告查询中。
+- `symptom_summary`、`notes`、`action_advice` 允许为空字符串。
+- 旧 `/ai/extract` 历史记录在 schema 5 下仍可正常读取。

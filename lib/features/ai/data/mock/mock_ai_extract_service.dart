@@ -29,10 +29,7 @@ class MockAiExtractService implements AiExtractService {
 
     final String symptomSummary = _buildSymptomSummary(normalizedRawText);
 
-    return AiExtractResult(
-      symptomSummary: symptomSummary,
-      notes: null,
-    );
+    return AiExtractResult(symptomSummary: symptomSummary, notes: null);
   }
 
   String _buildSymptomSummary(String rawText) {

@@ -7,6 +7,9 @@ import 'package:ai_case_assistant/features/ai/data/remote/remote_ai_report_servi
 import 'package:ai_case_assistant/features/ai/domain/exceptions/ai_extract_exception.dart';
 import 'package:ai_case_assistant/features/ai/domain/exceptions/ai_report_exception.dart';
 import 'package:ai_case_assistant/features/ai/domain/services/ai_report_service.dart';
+import 'package:ai_case_assistant/features/intake/data/remote/remote_ai_intake_service.dart';
+import 'package:ai_case_assistant/features/intake/domain/exceptions/ai_intake_exception.dart';
+import 'package:ai_case_assistant/features/intake/domain/services/ai_intake_service.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,6 +27,81 @@ void main() {
   final String? skipReason = _resolveSkipReason();
 
   group('Real AI API integration', () {
+    group('/ai/intake', () {
+      test('success case logs input and mapped final result', () async {
+        final DateTime eventTime = DateTime.utc(2026, 3, 19, 2, 0);
+        final List<IntakeRequestMessage> messages =
+            const <IntakeRequestMessage>[
+              IntakeRequestMessage(
+                role: IntakeMessageRole.user,
+                content: '喉咙痛两天，今天稍微好一些，没有继续补充更多信息。',
+              ),
+            ];
+        final _RecordedDioClient client = _createRecordedDioClient();
+        final RemoteAiIntakeService service = RemoteAiIntakeService(
+          dio: client.dio,
+        );
+
+        final IntakeResponse result = await service.submitIntake(
+          followUpMode: false,
+          forceFinalize: false,
+          eventTime: eventTime,
+          messages: messages,
+        );
+
+        _logCase(
+          caseId: 'intake-success-1',
+          endpoint: '/ai/intake',
+          requestBody: <String, dynamic>{
+            'followUpMode': false,
+            'forceFinalize': false,
+            'eventTime': formatEventTimeForApi(eventTime),
+            'messages': messages
+                .map((IntakeRequestMessage item) => item.toJson())
+                .toList(),
+          },
+          recorded: client.record,
+          mappedResult: <String, dynamic>{
+            'status': result.status.wireValue,
+            'question': result.question,
+            'draft': <String, dynamic>{
+              'mergedRawText': result.draft.mergedRawText,
+              'symptomSummary': result.draft.symptomSummary,
+              'notes': result.draft.notes,
+              'actionAdvice': result.draft.actionAdvice,
+            },
+          },
+        );
+
+        expect(result.status, IntakeResponseStatus.finalResult);
+      }, skip: skipReason);
+
+      test(
+        'failure case logs actual raw response when messages is missing',
+        () async {
+          final Map<String, dynamic> input = <String, dynamic>{
+            'followUpMode': true,
+            'forceFinalize': false,
+            'eventTime': '2026-03-19T10:00:00+08:00',
+          };
+          final Response<dynamic> response = await _postRaw(
+            path: '/ai/intake',
+            body: input,
+          );
+
+          _logRawResponse(
+            caseId: 'intake-failure-1',
+            endpoint: '/ai/intake',
+            requestBody: input,
+            response: response,
+          );
+
+          expect(_looksLikeIntakeSuccess(response.data), isFalse);
+        },
+        skip: skipReason,
+      );
+    });
+
     group('/ai/extract', () {
       test('success case 1 logs input and actual mapped result', () async {
         final DateTime eventTime = DateTime.utc(2026, 3, 14, 12, 0);
@@ -485,6 +563,14 @@ Object? _normalizeForLog(Object? data) {
     };
   }
 
+  if (data is AiIntakeException) {
+    return <String, Object?>{
+      'type': data.type.name,
+      'message': data.message,
+      'statusCode': data.statusCode,
+    };
+  }
+
   return data;
 }
 
@@ -505,4 +591,18 @@ class _RecordedHttpInteraction {
   int? statusCode;
   Object? requestBody;
   Object? responseBody;
+}
+
+bool _looksLikeIntakeSuccess(dynamic data) {
+  if (data is! Map<String, dynamic>) {
+    return false;
+  }
+
+  final dynamic draft = data['draft'];
+  return (data['status'] == 'final' || data['status'] == 'needs_followup') &&
+      draft is Map<String, dynamic> &&
+      draft['mergedRawText'] is String &&
+      draft['symptomSummary'] is String &&
+      draft['notes'] is String &&
+      draft['actionAdvice'] is String;
 }

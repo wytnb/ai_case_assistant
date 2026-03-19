@@ -1,8 +1,9 @@
 import 'dart:io';
 
 import 'package:ai_case_assistant/core/constants/health_record_limits.dart';
-import 'package:ai_case_assistant/features/ai/domain/exceptions/ai_extract_exception.dart';
-import 'package:ai_case_assistant/features/health_record/presentation/providers/health_record_providers.dart';
+import 'package:ai_case_assistant/features/intake/domain/exceptions/ai_intake_exception.dart';
+import 'package:ai_case_assistant/features/intake/presentation/providers/intake_providers.dart';
+import 'package:ai_case_assistant/features/settings/presentation/providers/settings_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -57,10 +58,13 @@ class _CreateHealthRecordPageState
     }
 
     try {
-      await ref
-          .read(createHealthRecordControllerProvider.notifier)
-          .createHealthRecord(
+      final bool followUpModeEnabled =
+          ref.read(followUpModeEnabledProvider).valueOrNull ?? false;
+      final IntakeSubmissionResult result = await ref
+          .read(intakeActionControllerProvider.notifier)
+          .startIntake(
             rawText: _rawTextController.text,
+            followUpModeEnabled: followUpModeEnabled,
             attachmentSourcePaths: _selectedImages
                 .map((XFile image) => image.path)
                 .toList(),
@@ -70,7 +74,11 @@ class _CreateHealthRecordPageState
         return;
       }
 
-      context.pop(true);
+      if (result.isFinal && result.healthEventId != null) {
+        context.go('/records/${result.healthEventId}');
+      } else {
+        context.go('/intake/${result.sessionId}');
+      }
     } catch (error) {
       if (!mounted) {
         return;
@@ -85,10 +93,14 @@ class _CreateHealthRecordPageState
   @override
   Widget build(BuildContext context) {
     final AsyncValue<void> createState = ref.watch(
-      createHealthRecordControllerProvider,
+      intakeActionControllerProvider,
+    );
+    final AsyncValue<bool> followUpModeAsync = ref.watch(
+      followUpModeEnabledProvider,
     );
     final bool isSubmitting = createState.isLoading;
     final int selectedImageCount = _selectedImages.length;
+    final bool followUpModeEnabled = followUpModeAsync.valueOrNull ?? false;
 
     return Scaffold(
       appBar: AppBar(title: const Text('新增记录')),
@@ -98,8 +110,19 @@ class _CreateHealthRecordPageState
           padding: const EdgeInsets.all(16),
           children: <Widget>[
             Text(
-              '只需输入本次原始描述，可选附上图片。系统会先整理摘要和备注，再完成本地保存。',
+              '只需输入本次原始描述，可选附上图片。系统会统一走 intake 主链路；若追问模式开启，可能先进入 AI 追问再生成最终记录。',
               style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                followUpModeEnabled
+                    ? Icons.toggle_on_rounded
+                    : Icons.toggle_off_outlined,
+              ),
+              title: const Text('当前追问模式'),
+              subtitle: Text(followUpModeEnabled ? '已开启' : '已关闭'),
             ),
             const SizedBox(height: 12),
             TextFormField(
@@ -130,10 +153,9 @@ class _CreateHealthRecordPageState
             Align(
               alignment: Alignment.centerRight,
               child: Text(
-                '$_trimmedRawTextLength/${HealthRecordService.rawTextMaxLength}',
+                '$_trimmedRawTextLength/$healthRecordRawTextMaxLength',
                 style: TextStyle(
-                  color:
-                      _trimmedRawTextLength > HealthRecordService.rawTextMaxLength
+                  color: _trimmedRawTextLength > healthRecordRawTextMaxLength
                       ? Theme.of(context).colorScheme.error
                       : Theme.of(context).textTheme.bodySmall?.color,
                 ),
@@ -170,7 +192,7 @@ class _CreateHealthRecordPageState
             const SizedBox(height: 24),
             FilledButton(
               onPressed: isSubmitting ? null : _submit,
-              child: Text(isSubmitting ? '正在整理…' : '保存记录'),
+              child: Text(isSubmitting ? '提交中…' : '开始整理'),
             ),
             if (createState.hasError) ...<Widget>[
               const SizedBox(height: 12),
@@ -186,19 +208,8 @@ class _CreateHealthRecordPageState
   }
 
   String _buildErrorMessage(Object? error) {
-    if (error is AiExtractException &&
-        error.type != AiExtractExceptionType.invalidResponsePayload) {
+    if (error is AiIntakeException) {
       return error.message;
-    }
-
-    if (error is AiExtractException &&
-        error.type == AiExtractExceptionType.invalidRequestPayload) {
-      return error.message;
-    }
-
-    if (error is AiExtractException &&
-        error.type == AiExtractExceptionType.invalidResponsePayload) {
-      return 'AI 返回结果无效，保存已取消，请稍后重试。';
     }
 
     return '保存失败，请稍后重试。';

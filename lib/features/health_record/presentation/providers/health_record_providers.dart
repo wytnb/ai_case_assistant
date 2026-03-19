@@ -84,12 +84,14 @@ class HealthRecordService {
     );
     final AiExtractResult extractResult = await _aiExtractService
         .extractFromRawText(rawText: normalizedRawText, eventTime: now);
-    final String? normalizedSymptomSummary = _normalizeOptionalText(
+    final String normalizedSymptomSummary = _normalizeStoredText(
       extractResult.symptomSummary,
     );
-    final String? normalizedNotes = _normalizeOptionalText(extractResult.notes);
+    final String? normalizedNotes = extractResult.notes == null
+        ? null
+        : _normalizeStoredText(extractResult.notes!);
     developer.log(
-      'createHealthRecord aiExtracted id=$healthEventId summaryLength=${normalizedSymptomSummary?.length ?? 0} '
+      'createHealthRecord aiExtracted id=$healthEventId summaryLength=${normalizedSymptomSummary.length} '
       'notesLength=${normalizedNotes?.length ?? 0}',
       name: 'HealthRecordService',
     );
@@ -125,12 +127,11 @@ class HealthRecordService {
             id: Value<String>(healthEventId),
             sourceType: const Value<String>('text'),
             rawText: Value<String>(normalizedRawText),
-            symptomSummary: normalizedSymptomSummary == null
-                ? const Value<String?>.absent()
-                : Value<String?>(normalizedSymptomSummary),
+            symptomSummary: Value<String?>(normalizedSymptomSummary),
             notes: normalizedNotes == null
                 ? const Value<String?>.absent()
                 : Value<String?>(normalizedNotes),
+            actionAdvice: const Value<String?>.absent(),
             createdAt: Value<DateTime>(now),
             updatedAt: Value<DateTime>(now),
           ),
@@ -170,17 +171,8 @@ class HealthRecordService {
     return _database.getAttachmentsByHealthEventId(healthEventId);
   }
 
-  String? _normalizeOptionalText(String? value) {
-    if (value == null) {
-      return null;
-    }
-
-    final String normalized = value.trim();
-    if (normalized.isEmpty) {
-      return null;
-    }
-
-    return normalized;
+  String _normalizeStoredText(String value) {
+    return value.trim();
   }
 
   void _validateRawText(String normalizedRawText) {

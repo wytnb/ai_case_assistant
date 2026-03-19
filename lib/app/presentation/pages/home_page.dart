@@ -1,13 +1,21 @@
 import 'dart:ui';
 
+import 'package:ai_case_assistant/features/settings/presentation/providers/settings_providers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AsyncValue<bool> followUpModeAsync = ref.watch(
+      followUpModeEnabledProvider,
+    );
+    final bool followUpModeEnabled = followUpModeAsync.valueOrNull ?? false;
+    final bool isLoading = followUpModeAsync.isLoading;
+
     return Scaffold(
       body: SafeArea(
         child: LayoutBuilder(
@@ -78,19 +86,34 @@ class HomePage extends StatelessWidget {
                     ),
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 360),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          _SecondaryActionEntry(
-                            icon: Icons.format_list_bulleted_rounded,
-                            label: '记录列表',
-                            onTap: () => context.push('/records'),
+                          _FollowUpModeCard(
+                            enabled: followUpModeEnabled,
+                            isLoading: isLoading,
+                            onChanged: (bool value) {
+                              ref
+                                  .read(followUpModeEnabledProvider.notifier)
+                                  .setEnabled(value);
+                            },
                           ),
-                          SizedBox(width: isCompactHeight ? 30 : 40),
-                          _SecondaryActionEntry(
-                            icon: Icons.description_outlined,
-                            label: '健康报告',
-                            onTap: () => context.push('/reports'),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _SecondaryActionEntry(
+                                icon: Icons.format_list_bulleted_rounded,
+                                label: '记录列表',
+                                onTap: () => context.push('/records'),
+                              ),
+                              SizedBox(width: isCompactHeight ? 30 : 40),
+                              _SecondaryActionEntry(
+                                icon: Icons.description_outlined,
+                                label: '健康报告',
+                                onTap: () => context.push('/reports'),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -100,6 +123,65 @@ class HomePage extends StatelessWidget {
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _FollowUpModeCard extends StatelessWidget {
+  const _FollowUpModeCard({
+    required this.enabled,
+    required this.isLoading,
+    required this.onChanged,
+  });
+
+  final bool enabled;
+  final bool isLoading;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color.fromRGBO(15, 118, 110, 0.08),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '追问模式',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: const Color(0xFF064E3B),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '开启后，新建记录会优先进入 AI 追问流程，再生成最终记录。',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: const Color(0xFF4B5563),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Switch(value: enabled, onChanged: isLoading ? null : onChanged),
+          ],
         ),
       ),
     );

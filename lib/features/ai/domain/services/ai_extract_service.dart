@@ -1,8 +1,5 @@
 class AiExtractResult {
-  const AiExtractResult({
-    required this.symptomSummary,
-    required this.notes,
-  });
+  const AiExtractResult({required this.symptomSummary, required this.notes});
 
   final String symptomSummary;
   final String? notes;

@@ -14,6 +14,8 @@ class HealthEvents extends Table {
 
   TextColumn get notes => text().nullable()();
 
+  TextColumn get actionAdvice => text().nullable()();
+
   DateTimeColumn get createdAt => dateTime()();
 
   DateTimeColumn get updatedAt => dateTime()();

@@ -9,7 +9,6 @@ import 'package:dio/dio.dart';
 class RemoteAiExtractService implements AiExtractService {
   RemoteAiExtractService({required Dio dio}) : _dio = dio;
 
-  static const int _summaryMaxLength = 36;
   final Dio _dio;
 
   @override
@@ -46,12 +45,9 @@ class RemoteAiExtractService implements AiExtractService {
         );
       }
 
-      final String? remoteSymptomSummary = _readValidText(
+      final String symptomSummary = _readRequiredString(
         responseData['symptomSummary'],
       );
-      final String symptomSummary =
-          remoteSymptomSummary ??
-          _buildFallbackSymptomSummary(normalizedRawText);
 
       developer.log(
         'POST /ai/extract success summaryLength=${symptomSummary.length} notesLength=${_safeTextLength(responseData['notes'])}',
@@ -60,7 +56,7 @@ class RemoteAiExtractService implements AiExtractService {
 
       return AiExtractResult(
         symptomSummary: symptomSummary,
-        notes: _readValidText(responseData['notes']),
+        notes: _readOptionalString(responseData['notes']),
       );
     } on AiExtractException {
       rethrow;
@@ -87,36 +83,23 @@ class RemoteAiExtractService implements AiExtractService {
     }
   }
 
-  String? _readValidText(dynamic value) {
+  String _readRequiredString(dynamic value) {
+    if (value is! String) {
+      throw const AiExtractException(
+        type: AiExtractExceptionType.invalidResponsePayload,
+        message: '提取结果无效，请稍后重试。',
+      );
+    }
+
+    return value.trim();
+  }
+
+  String? _readOptionalString(dynamic value) {
     if (value is! String) {
       return null;
     }
 
-    final String normalizedValue = value.trim();
-    if (normalizedValue.isEmpty) {
-      return null;
-    }
-
-    return normalizedValue;
-  }
-
-  String _buildFallbackSymptomSummary(String rawText) {
-    final String firstSegment = rawText
-        .split(RegExp(r'[。！？?!]+'))
-        .map((String segment) => segment.trim())
-        .firstWhere(
-          (String segment) => segment.isNotEmpty,
-          orElse: () => rawText,
-        );
-    return _truncate(firstSegment, _summaryMaxLength);
-  }
-
-  String _truncate(String value, int maxLength) {
-    if (value.length <= maxLength) {
-      return value;
-    }
-
-    return '${value.substring(0, maxLength)}...';
+    return value.trim();
   }
 
   void _validateRawText(String normalizedRawText) {

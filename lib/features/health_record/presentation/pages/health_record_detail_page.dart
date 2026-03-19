@@ -2,8 +2,10 @@ import 'dart:io';
 
 import 'package:ai_case_assistant/core/database/app_database.dart';
 import 'package:ai_case_assistant/features/health_record/presentation/providers/health_record_providers.dart';
+import 'package:ai_case_assistant/features/intake/presentation/providers/intake_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 class HealthRecordDetailPage extends ConsumerWidget {
@@ -21,6 +23,8 @@ class HealthRecordDetailPage extends ConsumerWidget {
     final AsyncValue<List<Attachment>> attachmentsAsync = ref.watch(
       healthRecordAttachmentsProvider(healthRecordId),
     );
+    final AsyncValue<Map<String, IntakeSession>> linkedSessionsAsync = ref
+        .watch(linkedIntakeSessionsProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('记录详情')),
@@ -46,15 +50,30 @@ class HealthRecordDetailPage extends ConsumerWidget {
               ),
               _DetailSection(
                 title: '原始文本',
-                child: Text(healthRecord.rawText ?? '暂无原始文本'),
+                child: Text(
+                  _displayTextOrPlaceholder(healthRecord.rawText, '暂无原始文本'),
+                ),
               ),
               _DetailSection(
                 title: '症状摘要',
-                child: Text(healthRecord.symptomSummary ?? '暂无症状摘要'),
+                child: Text(
+                  _displayTextOrPlaceholder(
+                    healthRecord.symptomSummary,
+                    '暂无 AI 摘要',
+                  ),
+                ),
               ),
               _DetailSection(
                 title: '备注',
-                child: Text(healthRecord.notes ?? '暂无备注'),
+                child: Text(
+                  _displayTextOrPlaceholder(healthRecord.notes, '暂无备注'),
+                ),
+              ),
+              _DetailSection(
+                title: '建议',
+                child: Text(
+                  _displayTextOrPlaceholder(healthRecord.actionAdvice, '暂无建议'),
+                ),
               ),
               _DetailSection(
                 title: '附件',
@@ -81,6 +100,26 @@ class HealthRecordDetailPage extends ConsumerWidget {
                   error: (_, _) => const Text('附件加载失败，请稍后重试。'),
                 ),
               ),
+              linkedSessionsAsync.when(
+                data: (Map<String, IntakeSession> linkedSessions) {
+                  final IntakeSession? linkedSession =
+                      linkedSessions[healthRecord.id];
+                  if (linkedSession == null) {
+                    return const SizedBox.shrink();
+                  }
+
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: FilledButton.tonal(
+                      onPressed: () =>
+                          context.push('/intake/${linkedSession.id}'),
+                      child: const Text('继续补充并重新追问'),
+                    ),
+                  );
+                },
+                loading: () => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
+              ),
             ],
           );
         },
@@ -88,6 +127,15 @@ class HealthRecordDetailPage extends ConsumerWidget {
         error: (_, _) => const _InfoState(title: '记录加载失败', message: '请稍后重试。'),
       ),
     );
+  }
+
+  String _displayTextOrPlaceholder(String? value, String placeholder) {
+    final String normalized = value?.trim() ?? '';
+    if (normalized.isEmpty) {
+      return placeholder;
+    }
+
+    return normalized;
   }
 }
 

@@ -173,12 +173,14 @@ void main() {
     });
   });
 
-  test('migrates schema 2 eventTime into createdAt and removes legacy columns', () async {
-    final sqlite.Database legacyDatabase = sqlite.sqlite3.openInMemory();
-    final DateTime oldEventTime = DateTime.parse('2026-03-12T07:30:00.000');
-    final int oldEventTimeSeconds =
-        oldEventTime.millisecondsSinceEpoch ~/ 1000;
-    legacyDatabase.execute('''
+  test(
+    'migrates schema 2 eventTime into createdAt and removes legacy columns',
+    () async {
+      final sqlite.Database legacyDatabase = sqlite.sqlite3.openInMemory();
+      final DateTime oldEventTime = DateTime.parse('2026-03-12T07:30:00.000');
+      final int oldEventTimeSeconds =
+          oldEventTime.millisecondsSinceEpoch ~/ 1000;
+      legacyDatabase.execute('''
       CREATE TABLE health_events (
         id TEXT NOT NULL PRIMARY KEY,
         event_time INTEGER NOT NULL,
@@ -190,7 +192,7 @@ void main() {
         updated_at INTEGER NOT NULL
       );
     ''');
-    legacyDatabase.execute('''
+      legacyDatabase.execute('''
       CREATE TABLE attachments (
         id TEXT NOT NULL PRIMARY KEY,
         health_event_id TEXT NOT NULL REFERENCES health_events (id),
@@ -199,7 +201,7 @@ void main() {
         created_at INTEGER NOT NULL
       );
     ''');
-    legacyDatabase.execute('''
+      legacyDatabase.execute('''
       CREATE TABLE reports (
         id TEXT NOT NULL PRIMARY KEY,
         report_type TEXT NOT NULL,
@@ -213,7 +215,7 @@ void main() {
         created_at INTEGER NOT NULL
       );
     ''');
-    legacyDatabase.execute('''
+      legacyDatabase.execute('''
       INSERT INTO health_events (
         id,
         event_time,
@@ -234,34 +236,35 @@ void main() {
         $oldEventTimeSeconds
       );
     ''');
-    legacyDatabase.execute('PRAGMA user_version = 2;');
+      legacyDatabase.execute('PRAGMA user_version = 2;');
 
-    final AppDatabase database = AppDatabase(
-      NativeDatabase.opened(legacyDatabase, closeUnderlyingOnClose: false),
-    );
+      final AppDatabase database = AppDatabase(
+        NativeDatabase.opened(legacyDatabase, closeUnderlyingOnClose: false),
+      );
 
-    final HealthEvent? record = await database.getHealthEventById('legacy-2');
-    final List<QueryRow> columns = await _healthEventColumns(database);
+      final HealthEvent? record = await database.getHealthEventById('legacy-2');
+      final List<QueryRow> columns = await _healthEventColumns(database);
 
-    expect(record, isNotNull);
-    expect(record!.createdAt, oldEventTime);
-    expect(record.updatedAt, oldEventTime);
-    expect(
-      columns.map((QueryRow row) => row.read<String>('name')),
-      isNot(contains('event_time')),
-    );
-    expect(
-      columns.map((QueryRow row) => row.read<String>('name')),
-      isNot(contains('event_start_time')),
-    );
-    expect(
-      columns.map((QueryRow row) => row.read<String>('name')),
-      isNot(contains('event_end_time')),
-    );
+      expect(record, isNotNull);
+      expect(record!.createdAt, oldEventTime);
+      expect(record.updatedAt, oldEventTime);
+      expect(
+        columns.map((QueryRow row) => row.read<String>('name')),
+        isNot(contains('event_time')),
+      );
+      expect(
+        columns.map((QueryRow row) => row.read<String>('name')),
+        isNot(contains('event_start_time')),
+      );
+      expect(
+        columns.map((QueryRow row) => row.read<String>('name')),
+        isNot(contains('event_end_time')),
+      );
 
-    await database.close();
-    legacyDatabase.dispose();
-  });
+      await database.close();
+      legacyDatabase.dispose();
+    },
+  );
 
   test(
     'migrates schema 3 health_events by dropping start/end columns and keeping createdAt',
@@ -269,9 +272,7 @@ void main() {
       final sqlite.Database legacyDatabase = sqlite.sqlite3.openInMemory();
       final DateTime createdAt = DateTime.parse('2026-03-14T07:30:00.000');
       final DateTime updatedAt = DateTime.parse('2026-03-14T08:30:00.000');
-      final DateTime eventStartTime = DateTime.parse(
-        '2026-03-14T06:30:00.000',
-      );
+      final DateTime eventStartTime = DateTime.parse('2026-03-14T06:30:00.000');
       final DateTime eventEndTime = DateTime.parse('2026-03-14T07:00:00.000');
       legacyDatabase.execute('''
         CREATE TABLE health_events (

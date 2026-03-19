@@ -2,41 +2,58 @@
 
 ## 项目简介
 
-AI 健康病例助手是一个以 Android 演示为主的 Flutter 移动端 MVP 项目。
-当前目标不是做成完整医疗产品，而是跑通一个真实可演示的闭环：
+AI 健康病例助手是一个以 Flutter 客户端为中心的本地优先 MVP。当前主目标不是做成完整医疗系统，而是跑通一条可演示、可验证的健康记录闭环：
 
-1. 输入健康相关原始描述
-2. 可选选择多张图片附件
-3. 调用 AI 提取摘要、备注，并携带记录的 `eventTime`
-4. 本地保存健康记录与附件
-5. 浏览记录列表与详情
-6. 生成并查看周报、月报、季报
+1. 用户输入初始健康描述，可选附带图片附件。
+2. 新增记录默认调用 `POST /ai/intake`。
+3. 当开启“追问模式”时，客户端在本地 Drift 中保存追问会话、消息历史和会话暂存附件。
+4. AI 可返回继续追问或直接完成；完成后再生成正式健康记录。
+5. 正式记录与未完成追问草稿严格分离存储。
+6. 客户端可查看记录列表、详情和周期报告。
 
-仓库包含 Android、iOS、macOS、Linux、Windows、Web 的 Flutter 骨架，但当前文档和演示目标以 Android 本地使用场景为主。
+仓库包含 Android、iOS、macOS、Linux、Windows、Web 的 Flutter 骨架，但当前文档和验证重点仍以 Android 本地使用场景为主。
 
 ## 当前实现状态
 
 ### 已落地能力
 
 - 首页 `/`
+  - 提供“追问模式”开关，并通过本地 `app_settings` 持久化。
 - 健康记录列表 `/records`
+  - 顶部显示未完成追问分区。
+  - 下方显示正式健康记录列表。
 - 新增健康记录 `/records/new`
+  - 默认走 `POST /ai/intake`。
+  - 可根据 AI 返回直接生成正式记录，或进入追问页。
+- 追问页 `/intake/:id`
+  - 展示消息历史、当前问题、继续补充输入框、发送按钮、强制结束按钮。
 - 健康记录详情 `/records/:id`
-- 报告列表 `/reports`
-- 报告详情 `/reports/:id`
-- `POST /ai/extract`
-- `POST /ai/report`
-- Drift 本地数据库与附件本地复制
+  - 展示 `rawText`、`symptomSummary`、`notes`、`actionAdvice`、附件。
+  - 对已关联 intake session 的正式记录提供“继续补充并重新追问”入口。
+- 报告 `/reports`、`/reports/:id`
+  - 仍基于正式 `health_events` 生成，不带入未完成追问草稿。
+- AI 接口
+  - `POST /ai/intake`
+  - `POST /ai/extract`
+  - `POST /ai/report`
 
 ### 当前明确未落地
 
-- 记录编辑 / 删除
-- 附件删除
-- AI 追问页与追问会话落库
-- OCR / 图片内容提取
-- 设置页
-- 云同步
 - 账号体系
+- 云同步
+- 服务端会话存储
+- OCR / 图片内容提取
+- 复杂医学结构化 schema
+- 记录编辑 / 删除
+- 追问页内新增附件
+
+## 本次关键规则
+
+- 追问会话状态只保存在客户端 Drift，不放到 worker。
+- 正式记录与未完成追问草稿分离存储；未完成会话不能污染正式记录列表和报告。
+- 新增记录默认调用 `/ai/intake`，旧 `/ai/extract` 保留但不再是默认新增链路。
+- `symptomSummary` 只要字段存在且类型为字符串，就原样保留；允许空字符串，不做首句 fallback，不做内容纠偏。
+- `notes`、`actionAdvice`、`mergedRawText`、`symptomSummary` 在入库前只做外层 `trim()`；`trim()` 后即使为空字符串也保留为空字符串。
 
 ## 技术栈
 
@@ -54,7 +71,7 @@ AI 健康病例助手是一个以 Android 演示为主的 Flutter 移动端 MVP 
 
 补充说明：
 
-- `freezed` 与 `json_serializable` 已在依赖中声明，但当前业务代码尚未实际使用。
+- `freezed` 与 `json_serializable` 仍在依赖中声明，但当前业务代码未采用。
 - 当前没有 CI 配置，也没有正式发布流水线。
 
 ## 快速启动
@@ -63,7 +80,7 @@ AI 健康病例助手是一个以 Android 演示为主的 Flutter 移动端 MVP 
 
 - 已安装 Flutter 与 FVM
 - 已安装 Android Studio / Android SDK / ADB
-- 需要演示真机或模拟器时，已连接设备
+- 需要演示真机或模拟器时，设备已可正常连接
 
 ### 常用命令
 
@@ -117,7 +134,7 @@ fvm flutter test
 fvm flutter test test/features/ai/real_ai_api_test.dart --dart-define=RUN_REAL_AI_API_TESTS=true --dart-define=AI_API_BASE_URL=https://your-worker.example.com
 ```
 
-文档同步检查脚本：
+文档同步检查：
 
 ```bash
 python scripts/check_doc_sync.py --working-tree --no-strict
@@ -125,23 +142,21 @@ python scripts/check_doc_sync.py --working-tree --no-strict
 
 说明：
 
-- 真实 AI 集成测试默认跳过，只有显式传入 `RUN_REAL_AI_API_TESTS=true` 才会运行。
-- 完成 mock 验证后，下一步必须执行一次带 `RUN_REAL_AI_API_TESTS=true` 的真实 AI 集成测试，再进入手工 smoke。
-- 当前真实验证默认地址为 `https://ai-api-worker.wytai.workers.dev`。
-- Android 真机若依赖 Clash 等代理访问该地址，手工 smoke 时应保留代理，不以“关闭代理”作为默认排障步骤。
-- 若真机在保留代理的前提下仍无法跑通，可追加 `fvm flutter run -d chrome --dart-define=AI_API_BASE_URL=https://ai-api-worker.wytai.workers.dev` 作为 Web Chrome 备用 smoke；它只能补 UI 与真实 AI 主链路，不替代 Android 安装、附件和设备特有行为验证。
-- 当前 FVM 命令在本地会输出 `Can't load Kernel binary: Invalid SDK hash.` 警告，但 `flutter analyze` 与 `flutter test` 仍可完成。
+- 如果改动触及 `/ai/intake`、`/ai/extract`、`features/ai/`、`core/network/`、`AI_API_BASE_URL` 或主链路页面，应评估并尽量执行真实 AI 验证或手工 smoke。
+- 当前本地 FVM 命令末尾可能输出 `Can't load Kernel binary: Invalid SDK hash.` 警告，但在本仓库里不阻塞 `flutter analyze` 与 `flutter test`。
 
 ## 仓库结构
 
-- `lib/app/`：应用入口、主题装配、路由、首页
-- `lib/core/`：配置、Dio、Drift 数据库、公共约束
-- `lib/features/ai/`：AI 接口、异常、mock / remote 实现
-- `lib/features/health_record/`：记录创建、列表、详情、附件本地存储
+- `lib/app/`：应用入口、主题、路由、首页
+- `lib/core/`：配置、Dio、Drift 数据库、公共装配
+- `lib/features/ai/`：`/ai/extract`、`/ai/report` 及相关异常与值对象
+- `lib/features/intake/`：`/ai/intake`、追问状态机、追问页、会话持久化
+- `lib/features/settings/`：设置项 Repository 与 Provider
+- `lib/features/health_record/`：正式记录创建、列表、详情、附件转正存储
 - `lib/features/report/`：报告生成、列表、详情
-- `test/`：当前自动化测试主目录
+- `test/`：自动化测试
 - `docs/`：项目事实文档
-- `scripts/`：文档同步与后续验证脚本入口
+- `scripts/`：文档同步与后续验证脚本
 
 ## 文档入口
 
@@ -150,31 +165,22 @@ python scripts/check_doc_sync.py --working-tree --no-strict
 1. [AGENTS.md](/c:/files/VibeCoding/ai_case_assistant/AGENTS.md)
 2. [docs/00-index.md](/c:/files/VibeCoding/ai_case_assistant/docs/00-index.md)
 3. [docs/docs-policy.md](/c:/files/VibeCoding/ai_case_assistant/docs/docs-policy.md)
-4. 与当前任务相关的编号文档
-
-文档模板、完整清单、示例和新增文档判定规则统一见 `docs/docs-policy.md`。
+4. 与当前任务最相关的编号文档
 
 高频文档：
 
-- [docs/01-overview.md](/c:/files/VibeCoding/ai_case_assistant/docs/01-overview.md)
 - [docs/02-scope-and-nongoals.md](/c:/files/VibeCoding/ai_case_assistant/docs/02-scope-and-nongoals.md)
 - [docs/03-business-flows.md](/c:/files/VibeCoding/ai_case_assistant/docs/03-business-flows.md)
 - [docs/05-system-architecture.md](/c:/files/VibeCoding/ai_case_assistant/docs/05-system-architecture.md)
-- [docs/09-env-and-runbook.md](/c:/files/VibeCoding/ai_case_assistant/docs/09-env-and-runbook.md)
+- [docs/06-api-contracts.md](/c:/files/VibeCoding/ai_case_assistant/docs/06-api-contracts.md)
+- [docs/07-data-model.md](/c:/files/VibeCoding/ai_case_assistant/docs/07-data-model.md)
 - [docs/10-testing-strategy.md](/c:/files/VibeCoding/ai_case_assistant/docs/10-testing-strategy.md)
+- [docs/adr/ADR-0003-client-owned-intake-sessions-and-separated-draft-storage.md](/c:/files/VibeCoding/ai_case_assistant/docs/adr/ADR-0003-client-owned-intake-sessions-and-separated-draft-storage.md)
 
 ## 当前已知限制
 
-- 数据仅保存在本地数据库和应用私有目录，换机或卸载会丢失。
-- AI 提取和报告生成依赖网络；无网络时只能查看已有本地数据。
-- 首页当前只有入口，不展示最近记录或统计摘要。
-- `HealthEvent.sourceType` 当前统一写为 `text`。
-- 图片附件会本地保存，但当前不会参与 AI 提取。
-- 报告详情展示 Markdown 原文，没有富渲染。
-- Android `applicationId`、iOS/macOS bundle id、Web manifest 描述仍保留默认占位值，尚未做产品化整理。
-
-## 相关支持目录
-
-- `.cursor/rules/`：Cursor 规则文件
-- `scripts/verify/`：固定验证脚本的预留目录
-- `tests/regression/`：后续专项回归用例的预留目录
+- 数据只保存在本地数据库与应用私有目录；换机或卸载会丢失。
+- AI 提取、追问和报告依赖网络；离线时只能查看已有本地数据。
+- 首页当前只放主入口和追问模式开关，不显示最近记录摘要。
+- 图片附件会跟随记录在本地保存，但当前不会参与 `/ai/intake` 或 `/ai/extract`。
+- 只有通过 `/ai/intake` 创建的正式记录才会关联 intake session；旧 `/ai/extract` 历史记录没有重新追问入口。

@@ -2,123 +2,148 @@
 
 ## 接口清单
 
+- `POST /ai/intake`
 - `POST /ai/extract`
 - `POST /ai/report`
 
-当前客户端没有接入其他后端接口，也没有鉴权相关请求头约定。
+当前客户端没有账号体系，也没有鉴权相关请求头约定。
 
-## 请求 / 响应
+## `POST /ai/intake`
 
-### `POST /ai/extract`
+- 方法：`POST`
+- 路径：`/ai/intake`
+- 用途：新增记录主链路、继续追问、强制结束追问、重新追问
+
+### 请求体
+
+```json
+{
+  "followUpMode": true,
+  "forceFinalize": false,
+  "eventTime": "2026-03-18T18:00:00+08:00",
+  "messages": [
+    { "role": "user", "content": "string" },
+    { "role": "assistant", "content": "string" }
+  ]
+}
+```
+
+### 请求字段规则
+
+| 字段 | 类型 | 必填 | 含义 | 规则 |
+|---|---|---|---|---|
+| `followUpMode` | `bool` | 是 | 是否启用追问模式 | 首页开关关闭时必须传 `false` |
+| `forceFinalize` | `bool` | 是 | 是否要求按当前信息直接完成 | 只有用户点击提前结束时传 `true` |
+| `eventTime` | `string` | 是 | 本次记录的业务时间锚点 | 使用不带毫秒、带 `+08:00` 的 ISO 8601 |
+| `messages` | `array` | 是 | 完整消息历史 | 不能为空；每条消息 `content.trim()` 后不能为空 |
+
+`messages[]` 字段如下：
+
+| 字段 | 类型 | 必填 | 含义 | 规则 |
+|---|---|---|---|---|
+| `role` | `string` | 是 | 消息角色 | 只能是 `user` / `assistant` |
+| `content` | `string` | 是 | 消息正文 | 客户端出站前会做 `trim()` |
+
+### 响应 1：需要继续追问
+
+```json
+{
+  "status": "needs_followup",
+  "question": "string",
+  "draft": {
+    "mergedRawText": "string",
+    "symptomSummary": "string",
+    "notes": "string",
+    "actionAdvice": "string"
+  }
+}
+```
+
+### 响应 2：最终完成
+
+```json
+{
+  "status": "final",
+  "question": null,
+  "draft": {
+    "mergedRawText": "string",
+    "symptomSummary": "string",
+    "notes": "string",
+    "actionAdvice": "string"
+  }
+}
+```
+
+### 当前客户端处理规则
+
+- `status` 只能是 `needs_followup` 或 `final`。
+- `needs_followup` 时：
+  - `question` 必须是字符串。
+- `final` 时：
+  - `question` 必须是 `null`。
+- `draft.mergedRawText`、`draft.symptomSummary`、`draft.notes`、`draft.actionAdvice` 都必须存在且为字符串。
+- 只有字段缺失、类型错误、结构非法时，才视为 `invalidResponsePayload`。
+- 内容短、空、一般、表达生硬，都不算非法 payload。
+- `draft` 中的字符串会在客户端做外层 `trim()` 后使用；`trim()` 后即使为空字符串也保留为空字符串。
+
+## `POST /ai/extract`
 
 - 方法：`POST`
 - 路径：`/ai/extract`
-- 用途：从用户原始文本中提取摘要与备注
+- 用途：旧新增记录链路与兼容回归验证
 
-#### 请求字段
+### 请求字段
 
-| 字段 | 类型 | 必填 | 含义 | 备注 |
+| 字段 | 类型 | 必填 | 含义 | 规则 |
 |---|---|---|---|---|
-| `rawText` | `string` | 是 | 用户原始描述 | 客户端会先 `trim()`；空字符串视为无效输入；长度不得超过 1000 字 |
-| `eventTime` | `string` | 是 | 本次记录时间 | 必须是带 `+08:00`、且不带毫秒的 ISO 8601 字符串，例如 `2026-03-18T10:20:30+08:00` |
+| `rawText` | `string` | 是 | 用户原始描述 | `trim()` 后不能为空，且不超过 1000 字 |
+| `eventTime` | `string` | 是 | 本次记录时间 | 使用不带毫秒、带 `+08:00` 的 ISO 8601 |
 
-#### 响应字段
+### 响应字段
 
-| 字段 | 类型 | 含义 | 备注 |
-|---|---|---|---|
-| `symptomSummary` | `string` | 摘要 | 为空或缺失时客户端会回退到 `rawText` 首句 |
-| `notes` | `string?` | 备注 | 缺失、空白或非字符串时客户端按 `null` 处理 |
+| 字段 | 类型 | 必填 | 含义 | 规则 |
+|---|---|---|---|---|
+| `symptomSummary` | `string` | 是 | 摘要 | 字段存在且类型为字符串时原样保留，允许空字符串 |
+| `notes` | `string?` | 否 | 备注 | 字段存在且类型为字符串时保留，允许空字符串；缺失时按 `null` 处理 |
 
-#### 当前客户端处理规则
+### 当前客户端处理规则
 
-- `rawText` 在调用前会校验为非空且不超过 1000 字；校验失败时不发请求
-- 如果响应不是对象，视为无效 payload
-- `notes` 不会被客户端补伪造文案
-- 当前不会把图片内容发送到该接口
+- 不再使用 `rawText` 首句作为 `symptomSummary` fallback。
+- 不再对 AI 返回的 `symptomSummary` 做内容纠偏或自定义替换。
+- `symptomSummary` 缺失或类型不是字符串时，才判定为 `invalidResponsePayload`。
+- `notes` 缺失时按 `null`；若存在且是字符串，则保留其 `trim()` 结果，允许空字符串。
 
-### `POST /ai/report`
+## `POST /ai/report`
 
 - 方法：`POST`
 - 路径：`/ai/report`
-- 用途：根据时间范围内的健康事件生成汇总报告
+- 用途：根据时间范围内的正式健康记录生成汇总报告
 
-#### 请求字段
+### 请求字段
 
-| 字段 | 类型 | 必填 | 含义 | 备注 |
+| 字段 | 类型 | 必填 | 含义 | 规则 |
 |---|---|---|---|---|
-| `reportType` | `string` | 是 | 报告类型 | 当前只发送 `week` / `month` / `quarter` |
+| `reportType` | `string` | 是 | 报告类型 | 当前只发 `week` / `month` / `quarter` |
 | `rangeStart` | `string` | 是 | 范围开始时间 | ISO 8601 |
 | `rangeEnd` | `string` | 是 | 范围结束时间 | ISO 8601 |
-| `events` | `array` | 是 | 参与汇总的事件列表 | 可为空列表 |
+| `events` | `array` | 是 | 正式记录事件列表 | 不包含未完成追问 |
 
-`events[]` 当前字段如下：
+### 错误语义
 
-| 字段 | 类型 | 必填 | 含义 | 备注 |
-|---|---|---|---|---|
-| `id` | `string` | 是 | 记录 ID | 来自 `HealthEvent.id` |
-| `eventTime` | `string` | 是 | 事件时间 | 当前复用不带毫秒、带 `+08:00` 的 ISO 8601 序列化口径 |
-| `sourceType` | `string` | 是 | 来源类型 | 当前总是 `text` |
-| `rawText` | `string?` | 否 | 原始文本 | 客户端会截断到最多 500 字符 |
-| `symptomSummary` | `string?` | 否 | 摘要 | 空白转 `null` |
-| `notes` | `string?` | 否 | 备注 | 空白转 `null` |
+当前客户端统一映射本地异常类型：
 
-#### 响应字段
-
-| 字段 | 类型 | 含义 | 备注 |
-|---|---|---|---|
-| `title` | `string` | 报告标题 | 必须是非空字符串 |
-| `summary` | `string` | 报告摘要 | 必须是非空字符串 |
-| `advice` | `string[]` | 建议列表 | 必须是字符串数组，元素不能为空白 |
-| `markdown` | `string` | Markdown 正文 | 必须是非空字符串 |
-
-#### 当前客户端处理规则
-
-- 客户端在调用前会校验 `reportType` 非空且 `rangeEnd >= rangeStart`
-- 当前客户端仍会把空 `events` 列表发送给上游；上游应返回何种空报告语义仍待确认
-- 响应不是对象、缺字段、字段类型错误时，视为无效 payload
-- 客户端发送 `eventTime`，不再发送 `eventStartTime` / `eventEndTime`
-
-## 错误语义
-
-当前没有确认过的上游业务错误码表，客户端记录的是“本地映射后的异常类型”。
-
-### 提取接口客户端异常
-
-| 异常类型 | 含义 | 处理建议 |
+| 异常类型 | 含义 | 适用接口 |
 |---|---|---|
-| `invalidRequestPayload` | 客户端本地输入非法 | 提示修正输入后重试 |
-| `network` | 网络连接异常或超时类连接问题 | 提示检查网络后重试 |
-| `upstreamHttpError` | AI 服务返回非成功 HTTP 状态 | 稍后重试 |
-| `invalidResponsePayload` | 响应结构无效 | 取消保存并提示失败 |
-| `unknown` | 其他未知错误 | 稍后重试 |
-
-### 报告接口客户端异常
-
-| 异常类型 | 含义 | 处理建议 |
-|---|---|---|
-| `invalidRequestPayload` | 客户端本地参数非法 | 检查范围与类型 |
-| `timeout` | 连接、发送或接收超时 | 稍后重试 |
-| `network` | 网络连接异常 | 检查网络后重试 |
-| `upstreamHttpError` | AI 服务返回非成功 HTTP 状态 | 稍后重试 |
-| `invalidResponsePayload` | 响应结构不符合当前契约 | 视为生成失败 |
-| `unknown` | 其他未知错误 | 稍后重试 |
-
-## 鉴权
-
-- 当前客户端没有鉴权 token、用户态或签名机制
-- 若未来引入鉴权，应补充到本文件与 `docs/09-env-and-runbook.md`
-
-## 幂等 / 重试
-
-- 当前没有幂等键
-- 新增记录失败后需由用户手动重试
-- 报告生成失败后需由用户手动重试
-- 同一报告范围重复生成时，客户端会在本地按覆盖更新处理，不保留重复结果
+| `invalidRequestPayload` | 本地入参非法 | `/ai/intake` `/ai/extract` `/ai/report` |
+| `network` | 网络连接异常 | `/ai/intake` `/ai/extract` `/ai/report` |
+| `upstreamHttpError` | 上游返回非成功 HTTP 状态 | `/ai/intake` `/ai/extract` `/ai/report` |
+| `invalidResponsePayload` | 响应结构不合法 | `/ai/intake` `/ai/extract` `/ai/report` |
+| `unknown` | 其他未知错误 | `/ai/intake` `/ai/extract` `/ai/report` |
 
 ## 兼容性要求
 
-- `/ai/extract` 必须接受 `rawText` 与 `eventTime`
-- `/ai/extract` 返回体当前至少应兼容 `symptomSummary` 与 `notes`
-- `/ai/report` 必须继续返回 `title`、`summary`、`advice`、`markdown`
-- 若上游新增字段，客户端当前会忽略未使用字段
-- 若上游删除现有必需字段或更改类型，当前客户端会按失败处理
+- `/ai/intake` 是当前新增记录默认链路。
+- `/ai/extract` 必须继续保留，直到明确移除旧链路。
+- `/ai/report` 继续基于正式记录的 `eventTime` 语义工作。
+- 若上游新增未使用字段，客户端当前忽略。
+- 若上游删掉必需字段或改错类型，客户端按失败处理。
