@@ -47,11 +47,21 @@ class AppDatabase extends _$AppDatabase {
               healthEvents.createdAt: const CustomExpression<DateTime>(
                 'event_time',
               ),
+              healthEvents.actionAdvice: const CustomExpression<Object>('NULL'),
+            },
+          ),
+        );
+      } else if (from < 4) {
+        await migrator.alterTable(
+          TableMigration(
+            healthEvents,
+            columnTransformer: <GeneratedColumn<Object>, Expression<Object>>{
+              healthEvents.actionAdvice: const CustomExpression<Object>('NULL'),
             },
           ),
         );
       } else if (from < 5) {
-        await migrator.alterTable(TableMigration(healthEvents));
+        await migrator.addColumn(healthEvents, healthEvents.actionAdvice);
       }
       if (from < 5) {
         await migrator.createTable(appSettings);

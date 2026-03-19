@@ -359,10 +359,109 @@ void main() {
       legacyDatabase.dispose();
     },
   );
+
+  test(
+    'migrates schema 4 by adding actionAdvice and new intake tables',
+    () async {
+      final sqlite.Database legacyDatabase = sqlite.sqlite3.openInMemory();
+      final DateTime createdAt = DateTime.parse('2026-03-14T07:30:00.000');
+      final DateTime updatedAt = DateTime.parse('2026-03-14T08:30:00.000');
+      legacyDatabase.execute('''
+      CREATE TABLE health_events (
+        id TEXT NOT NULL PRIMARY KEY,
+        source_type TEXT NOT NULL,
+        raw_text TEXT,
+        symptom_summary TEXT,
+        notes TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+    ''');
+      legacyDatabase.execute('''
+      CREATE TABLE attachments (
+        id TEXT NOT NULL PRIMARY KEY,
+        health_event_id TEXT NOT NULL REFERENCES health_events (id),
+        file_path TEXT NOT NULL,
+        file_type TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+    ''');
+      legacyDatabase.execute('''
+      CREATE TABLE reports (
+        id TEXT NOT NULL PRIMARY KEY,
+        report_type TEXT NOT NULL,
+        range_start INTEGER NOT NULL,
+        range_end INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        advice_json TEXT NOT NULL,
+        markdown TEXT NOT NULL,
+        generated_at INTEGER NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+    ''');
+      legacyDatabase.execute('''
+      INSERT INTO health_events (
+        id,
+        source_type,
+        raw_text,
+        symptom_summary,
+        notes,
+        created_at,
+        updated_at
+      ) VALUES (
+        'legacy-4',
+        'text',
+        'old raw text',
+        'old summary',
+        'old notes',
+        ${createdAt.millisecondsSinceEpoch ~/ 1000},
+        ${updatedAt.millisecondsSinceEpoch ~/ 1000}
+      );
+    ''');
+      legacyDatabase.execute('PRAGMA user_version = 4;');
+
+      final AppDatabase database = AppDatabase(
+        NativeDatabase.opened(legacyDatabase, closeUnderlyingOnClose: false),
+      );
+
+      final HealthEvent? record = await database.getHealthEventById('legacy-4');
+      final List<QueryRow> healthEventColumns = await _tableColumns(
+        database,
+        'health_events',
+      );
+      final List<QueryRow> tableRows = await database
+          .customSelect("SELECT name FROM sqlite_master WHERE type = 'table';")
+          .get();
+
+      expect(record, isNotNull);
+      expect(record!.actionAdvice, isNull);
+      expect(
+        healthEventColumns.map((QueryRow row) => row.read<String>('name')),
+        contains('action_advice'),
+      );
+      expect(
+        tableRows.map((QueryRow row) => row.read<String>('name')),
+        containsAll(<String>[
+          'app_settings',
+          'intake_sessions',
+          'intake_messages',
+          'intake_session_attachments',
+        ]),
+      );
+
+      await database.close();
+      legacyDatabase.dispose();
+    },
+  );
 }
 
 Future<List<QueryRow>> _healthEventColumns(AppDatabase database) {
   return database.customSelect("PRAGMA table_info('health_events');").get();
+}
+
+Future<List<QueryRow>> _tableColumns(AppDatabase database, String tableName) {
+  return database.customSelect("PRAGMA table_info('$tableName');").get();
 }
 
 class FakeAiExtractService implements AiExtractService {
