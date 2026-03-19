@@ -107,7 +107,7 @@ fvm flutter run
 指定 AI 代理地址：
 
 ```bash
-fvm flutter run --dart-define=AI_API_BASE_URL=https://your-worker.example.com
+fvm flutter run --dart-define=AI_API_BASE_URL=https://ai-api-worker.wytai.workers.dev
 ```
 
 使用本地 mock 提取服务：
@@ -133,7 +133,7 @@ fvm flutter test
 真实 AI 接口集成测试：
 
 ```bash
-fvm flutter test test/features/ai/real_ai_api_test.dart --dart-define=RUN_REAL_AI_API_TESTS=true --dart-define=AI_API_BASE_URL=https://your-worker.example.com
+fvm flutter test test/features/ai/real_ai_api_test.dart --dart-define=RUN_REAL_AI_API_TESTS=true --dart-define=AI_API_BASE_URL=https://ai-api-worker.wytai.workers.dev
 ```
 
 文档同步检查：
