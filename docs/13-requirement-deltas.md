@@ -6,6 +6,35 @@
 
 ## 变更记录
 
+### 2026-03-19 - 测试流程收敛为“自动化 / 模拟器 / 真机 / Web 备用”四层
+
+- 原需求：
+  - 测试文档对自动化、设备 smoke、真实 AI 验证的责任边界不够清晰
+  - Android 模拟器与真机的适用范围没有明确拆开
+  - Web Chrome 备用 smoke 的触发条件与能力边界不够明确
+- 新需求：
+  - 默认快速验证固定为 `fvm flutter analyze` 与 `fvm flutter test`
+  - `test/features/ai/real_ai_api_test.dart` 继续保留，但属于显式开启的本地自动化项，默认不跑
+  - 首页、路由、纯文本新增记录、列表页、详情页、报告页基础打开，优先由 Android 模拟器 smoke 覆盖
+  - 相册、附件、本地文件、`image_picker`、图片预览、安装、权限、代理网络统一收敛到 Android 真机 smoke
+  - Web Chrome 只允许在保留代理的前提下真机仍无法打通真实 AI 文本链路时，作为备用验证
+  - 允许跳过非必要层级，但最终汇报必须写明未执行验证、原因与剩余风险
+- 变更原因：
+  - 降低日常迭代的时间成本与 token 消耗
+  - 减少没有收益的真机验证，同时保留高风险设备行为的必要覆盖
+  - 统一 README、运行手册、测试策略、回归矩阵与发布 smoke 的口径
+- 影响范围：
+  - `README.md`
+  - `docs/09-env-and-runbook.md`
+  - `docs/10-testing-strategy.md`
+  - `docs/11-regression-matrix.md`
+  - `docs/12-release-smoke-checklist.md`
+- 需要补的测试：
+  - 本次为文档与验证策略收敛，不新增代码测试
+- 风险：
+  - 若执行人错误判断触发条件，可能把应上真机的附件类改动停在模拟器
+  - Web Chrome 备用 smoke 容易被误用为 Android 验证替代，需要在最终汇报中持续约束
+
 ### 2026-03-19 - 首次免责强制同意与报告详情页尾免责提示
 
 - 原需求：

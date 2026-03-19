@@ -1,17 +1,21 @@
 # 回归矩阵
 
-| 功能 / 模块 | 改动触发条件 | 风险等级 | 必测场景 | 自动化情况 | 备注 |
-|---|---|---|---|---|---|
-| 首页与主入口 | 首页布局、追问模式开关、主导航变化 | 高 | 首次免责弹窗强阻断；勾选同意后放行；开关显示与持久化 | 有 | `home_page_test.dart`, `widget_test.dart` |
-| 新增记录主链路 | `/records/new`、`IntakeService`、路由变化 | 高 | `followUpMode=false` direct-final；`followUpMode=true` 进入追问 | 有 | 默认链路已切到 `/ai/intake` |
-| 追问页 | `/intake/:id` 页面或 provider/service 变化 | 高 | 继续补充、强制结束、恢复 `awaiting_user_input`、恢复 `questioning` | 有 | `intake_page_test.dart` |
-| 未完成追问列表 | `/records` 顶部分区或 session 查询变化 | 高 | 多会话排序、正式记录区不混入未完成 session | 有 | `health_record_list_page_test.dart` |
-| 正式记录详情 | 详情页字段、重新追问入口变化 | 高 | `actionAdvice` 展示、空状态、已关联 session 才显示入口 | 有 | `health_record_detail_page_test.dart` |
-| `/ai/intake` 契约 | 请求体、响应解析、异常映射变化 | 高 | 请求字段、`needs_followup`、`final`、invalid payload | 有 | `remote_ai_services_test.dart` |
-| `/ai/extract` 兼容回归 | 摘要处理或异常映射变化 | 高 | 不再首句 fallback；空字符串保留；缺字段才 invalid | 有 | `remote_ai_services_test.dart` |
-| 设置存储 | `app_settings` 表或仓库逻辑变化 | 中 | typed key-value、默认值、约束 | 有 | `intake_service_test.dart` |
-| 会话数据与附件暂存 | `intake_*` 表、附件存储逻辑变化 | 高 | 会话落库、顺序、附件转正、回填 `healthEventId` | 有 | `intake_service_test.dart` |
-| 重新追问更新原记录 | finalize/update 逻辑变化 | 高 | 更新原 `health_event`，不新建重复记录 | 有 | `intake_service_test.dart` |
-| 报告生成与详情展示 | 报告查询、报告详情页展示变化 | 高 | 报告只基于正式记录；详情页末尾免责说明可见 | 有 | 数据、remote 与 `report_detail_page_test.dart` |
-| 数据库迁移 | `schemaVersion` 或迁移逻辑变化 | 高 | 老库升级到 schema 5 | 有 | `app_database_test.dart` |
-| 真实 AI 与演示链路 | 网络层、环境变量、真实 worker 行为变化 | 高 | 真实接口与手工 smoke | 部分 | 需要额外执行 |
+| 场景 / 模块 | 默认自动化 | Android 模拟器 | Android 真机 | 是否可用 Web Chrome 备用 | 触发条件 | 备注 / 剩余风险 |
+|---|---|---|---|---|---|---|
+| 首页与主入口 | 必跑 | 页面或导航变化时必跑 | 发布 / 验收时必跑 | 仅备用 | 首页布局、免责弹窗、追问模式开关、主导航变化 | 日常改动优先模拟器 |
+| 首页三个入口跳转 | 必跑 | 必跑 | 发布 / 验收时必跑 | 仅备用 | 首页入口文案、入口卡片、路由变化 | Web 仅能补基础打开 |
+| 新增记录纯文本主链路 | 必跑 | 必跑 | 发布 / 验收时必跑 | 可作为文本链路备用 | `/records/new` UI、提交、路由、`/ai/intake` 纯文本链路变化 | 不选图片时模拟器足够 |
+| 列表页基础打开 | 必跑 | 必跑 | 发布 / 验收时必跑 | 仅备用 | `/records` 页面结构、分区展示、导航变化 | 基础打开不要求真机 |
+| 记录详情基础打开 | 必跑 | 必跑 | 发布 / 验收时必跑 | 仅备用 | `/records/:id` 字段展示、入口按钮、导航变化 | 若涉及图片预览则升级到真机 |
+| 报告列表与详情基础打开 | 必跑 | 必跑 | 发布 / 验收时必跑 | 仅备用 | `/reports`、`/reports/:id` UI 或导航变化 | 免责说明仍由自动化守住 |
+| `/ai/intake` 契约与解析 | 必跑 | 纯文本真实 AI smoke 时必跑 | 演示 / 验收依赖真机链路时必跑 | 可作为文本链路备用 | 请求体、响应解析、异常映射变化 | `real_ai_api_test.dart` 默认不跑但需评估 |
+| `/ai/extract` 兼容回归 | 必跑 | 按需 | 否 | 否 | 摘要处理或异常映射变化 | 主要靠本地自动化与显式真实 AI 测试 |
+| `/ai/report` 契约与生成 | 必跑 | 按需 | 演示 / 验收依赖真机链路时必跑 | 可作为文本链路备用 | 报告请求、解析、配置变化 | 纯文本链路优先模拟器 |
+| `features/ai/`、`core/network/`、`core/config/` | 必跑 | 必跑 | 若涉及代理 / 安装 / 设备网络则必跑 | 仅在真机受阻时备用 | 网络层、配置、环境变量变化 | 真实 AI 测试需单独评估 |
+| 追问页与会话恢复 | 必跑 | 页面或主链路变化时必跑 | 发布 / 验收时必跑 | 仅备用 | `/intake/:id` 页面、状态恢复、强制结束变化 | 纯文本追问流程模拟器足够 |
+| 会话数据与附件暂存逻辑 | 必跑 | 否 | 必跑 | 否 | `intake_*` 表、附件存储、附件转正、回滚变化 | 自动化只能覆盖部分文件行为 |
+| 图片选择与权限 | 否 | 否 | 必跑 | 否 | `image_picker`、权限提示、图片入口变化 | 系统相册只能真机验证 |
+| 详情页图片预览与全屏预览 | 部分 | 否 | 必跑 | 否 | `Image.file(...)` 预览链路变化 | 需验证真实文件可读与全屏展示 |
+| 附件复制、本地文件路径、重启后可读 | 部分 | 否 | 必跑 | 否 | 私有目录路径、复制 / 删除 / 回滚逻辑变化 | 设备文件系统行为不可由 Web 替代 |
+| Android 安装、启动、包体、权限、代理网络 | 否 | 否 | 必跑 | 否 | 安装包、启动、权限、代理、候选发布变化 | 发布前必须真机 |
+| 数据库迁移 | 必跑 | 按需 | 发布 / 验收时建议补跑 | 否 | `schemaVersion` 或迁移逻辑变化 | 自动化为主，设备 smoke 用于防止升级后打不开 |

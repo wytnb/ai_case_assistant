@@ -130,7 +130,7 @@ fvm flutter analyze
 fvm flutter test
 ```
 
-真实 AI 接口集成测试：
+真实 AI 接口集成测试（显式开启，默认不跑）：
 
 ```bash
 fvm flutter test test/features/ai/real_ai_api_test.dart --dart-define=RUN_REAL_AI_API_TESTS=true --dart-define=AI_API_BASE_URL=https://ai-api-worker.wytai.workers.dev
@@ -144,7 +144,12 @@ python scripts/check_doc_sync.py --working-tree --no-strict
 
 说明：
 
-- 如果改动触及 `/ai/intake`、`/ai/extract`、`features/ai/`、`core/network/`、`AI_API_BASE_URL` 或主链路页面，应评估并尽量执行真实 AI 验证或手工 smoke。
+- 默认快速验证是 `fvm flutter analyze` + `fvm flutter test`；绝大多数任务停在这一层即可。
+- `test/features/ai/real_ai_api_test.dart` 属于本地自动化中的显式开启项，不属于设备测试。
+- 首页、路由、关键页面交互、纯文本新增记录主链路、列表/详情/报告页基础打开，优先用 Android 模拟器 smoke。
+- 相册、附件、本地文件、图片预览、安装、权限、代理网络相关改动，必须上 Android 真机 smoke。
+- Web Chrome smoke 只能作为真实 AI 文本主链路的备用验证，不能替代 Android 安装、附件、权限、相册或设备特有行为验证。
+- 如果改动触及 `/ai/intake`、`/ai/extract`、`/ai/report`、`features/ai/`、`core/network/`、`core/config/`、`AI_API_BASE_URL` 或主链路页面，应评估并尽量执行真实 AI 验证或对应 smoke。
 - 当前本地 FVM 命令末尾可能输出 `Can't load Kernel binary: Invalid SDK hash.` 警告，但在本仓库里不阻塞 `flutter analyze` 与 `flutter test`。
 
 ## 仓库结构
