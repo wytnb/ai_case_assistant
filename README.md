@@ -4,6 +4,9 @@
 
 项目定位、目标用户、目标问题和当前版本目标见 [docs/01-overview.md](docs/01-overview.md)。
 
+## 演示版本APK
+[安装包](./AI健康助手.apk)
+
 ## 怎么跑
 
 前置要求：
