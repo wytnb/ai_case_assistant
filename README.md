@@ -37,11 +37,13 @@ fvm flutter pub run build_runner build --delete-conflicting-outputs
 fvm flutter run
 ```
 
-环境变量、验证命令、真实 AI 测试和排障说明见 [docs/09-env-and-runbook.md](docs/09-env-and-runbook.md)。
+环境变量、验证命令、真实 AI 测试和排障总览见 [docs/09-env-and-runbook.md](docs/09-env-and-runbook.md)。
+Android 真机连接、安装、运行与排障 SOP 见 [docs/14-android-real-device-testing-sop.md](docs/14-android-real-device-testing-sop.md)。
 发布前 smoke 检查见 [docs/12-release-smoke-checklist.md](docs/12-release-smoke-checklist.md)。
 
 ## 去哪里读详细文档
 
 - 项目概览：[`docs/01-overview.md`](docs/01-overview.md)
 - 环境与运行手册：[`docs/09-env-and-runbook.md`](docs/09-env-and-runbook.md)
+- Android 真机测试 SOP：[`docs/14-android-real-device-testing-sop.md`](docs/14-android-real-device-testing-sop.md)
 - 完整文档索引：[`docs/00-index.md`](docs/00-index.md)

@@ -384,6 +384,62 @@ void main() {
         expect(session!.healthEventId, first.healthEventId);
       },
     );
+
+    test('hardDeleteDraftSession removes the draft session, messages, and staged attachments', () async {
+      final DateTime now = DateTime.parse('2026-03-19T10:00:00.000');
+      final File sourceFile = await _createTempFile('draft-attachment');
+      final String storedPath = await intakeAttachmentStorage.saveImageAttachment(
+        sessionId: 'session-1',
+        attachmentId: 'attachment-1',
+        sourceFilePath: sourceFile.path,
+      );
+      await database.insertIntakeSession(
+        IntakeSessionsCompanion.insert(
+          id: 'session-1',
+          healthEventId: const Value<String?>.absent(),
+          eventTime: now,
+          followUpModeSnapshot: true,
+          status: 'awaiting_user_input',
+          initialRawText: '初始描述',
+          mergedRawText: const Value<String?>('合并描述'),
+          latestQuestion: const Value<String?>('有没有发烧？'),
+          draftSymptomSummary: const Value<String?>('摘要'),
+          draftNotes: const Value<String?>(''),
+          draftActionAdvice: const Value<String?>(''),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await database.insertIntakeMessage(
+        IntakeMessagesCompanion.insert(
+          id: 'm1',
+          sessionId: 'session-1',
+          seq: 1,
+          role: 'user',
+          content: '初始描述',
+          createdAt: now,
+        ),
+      );
+      await database.insertIntakeSessionAttachment(
+        IntakeSessionAttachmentsCompanion.insert(
+          id: 'attachment-1',
+          sessionId: 'session-1',
+          filePath: storedPath,
+          fileType: 'image',
+          createdAt: now,
+        ),
+      );
+
+      await service.hardDeleteDraftSession('session-1');
+
+      expect(await service.getSessionById('session-1'), isNull);
+      expect(await service.getMessagesBySessionId('session-1'), isEmpty);
+      expect(
+        await database.getIntakeSessionAttachmentsBySessionId('session-1'),
+        isEmpty,
+      );
+      expect(File(storedPath).existsSync(), isFalse);
+    });
   });
 }
 

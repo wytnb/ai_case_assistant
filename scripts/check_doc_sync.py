@@ -52,6 +52,7 @@ DOC_FILES = {
     "docs/11-regression-matrix.md",
     "docs/12-release-smoke-checklist.md",
     "docs/13-requirement-deltas.md",
+    "docs/14-android-real-device-testing-sop.md",
 }
 
 CODE_EXTENSIONS = {
@@ -97,6 +98,7 @@ DOC_SUGGESTION_RULES = [
             "docs/08-rules-and-edge-cases.md",
             "docs/11-regression-matrix.md",
             "docs/13-requirement-deltas.md",
+            "docs/14-android-real-device-testing-sop.md",
         },
     ),
     (
@@ -111,6 +113,7 @@ DOC_SUGGESTION_RULES = [
             "docs/10-testing-strategy.md",
             "docs/12-release-smoke-checklist.md",
             "docs/13-requirement-deltas.md",
+            "docs/14-android-real-device-testing-sop.md",
         },
     ),
     (
@@ -136,6 +139,7 @@ DOC_SUGGESTION_RULES = [
             "docs/07-data-model.md",
             "docs/08-rules-and-edge-cases.md",
             "docs/10-testing-strategy.md",
+            "docs/14-android-real-device-testing-sop.md",
         },
     ),
     (
@@ -166,6 +170,7 @@ DOC_SUGGESTION_RULES = [
             "README.md",
             "docs/09-env-and-runbook.md",
             "docs/12-release-smoke-checklist.md",
+            "docs/14-android-real-device-testing-sop.md",
         },
     ),
     (
@@ -175,6 +180,7 @@ DOC_SUGGESTION_RULES = [
             "docs/10-testing-strategy.md",
             "docs/11-regression-matrix.md",
             "docs/12-release-smoke-checklist.md",
+            "docs/14-android-real-device-testing-sop.md",
         },
     ),
     (
@@ -225,6 +231,18 @@ EXTRA_REMINDER_RULES = [
             or p.startswith("ios/")
             or p.startswith("macos/")
             or p.startswith("web/")
+            for p in files
+        ),
+    ),
+    (
+        "如本次改动涉及 Android 安装、设备网络、图片权限、相册入口、附件或图片预览，请按 docs/14-android-real-device-testing-sop.md 评估并执行真机 smoke。",
+        lambda files: any(
+            p.startswith("android/")
+            or "image_picker" in p
+            or "/attachments/" in p
+            or "attachment" in p
+            or "Image.file" in p
+            or "preview" in p
             for p in files
         ),
     ),

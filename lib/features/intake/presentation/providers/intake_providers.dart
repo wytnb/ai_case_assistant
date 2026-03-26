@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:ai_case_assistant/core/constants/health_record_limits.dart';
 import 'package:ai_case_assistant/core/database/app_database.dart';
@@ -10,6 +11,7 @@ import 'package:ai_case_assistant/features/intake/domain/exceptions/ai_intake_ex
 import 'package:ai_case_assistant/features/intake/domain/services/ai_intake_service.dart';
 import 'package:ai_case_assistant/features/intake/presentation/providers/ai_intake_service_provider.dart';
 import 'package:drift/drift.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -33,7 +35,11 @@ final Provider<IntakeService> intakeServiceProvider = Provider<IntakeService>((
 
 final FutureProvider<List<IntakeSession>> unfinishedIntakeSessionsProvider =
     FutureProvider<List<IntakeSession>>((Ref ref) {
-      return ref.watch(intakeServiceProvider).getUnfinishedSessions();
+      final DateTimeRange? filter = ref.watch(recordEventTimeFilterProvider);
+      return ref.watch(intakeServiceProvider).getUnfinishedSessions(
+        start: filter?.start,
+        end: filter?.end,
+      );
     });
 
 final FutureProvider<Map<String, IntakeSession>> linkedIntakeSessionsProvider =
@@ -60,6 +66,12 @@ final AutoDisposeAsyncNotifierProvider<IntakeActionController, void>
 intakeActionControllerProvider =
     AutoDisposeAsyncNotifierProvider<IntakeActionController, void>(
       IntakeActionController.new,
+    );
+
+final AutoDisposeAsyncNotifierProvider<DeleteDraftSessionController, void>
+deleteDraftSessionControllerProvider =
+    AutoDisposeAsyncNotifierProvider<DeleteDraftSessionController, void>(
+      DeleteDraftSessionController.new,
     );
 
 class IntakeSubmissionResult {
@@ -91,8 +103,11 @@ class IntakeService {
   final HealthRecordAttachmentStorage _healthRecordAttachmentStorage;
   static const Uuid _uuid = Uuid();
 
-  Future<List<IntakeSession>> getUnfinishedSessions() {
-    return _database.getUnfinishedIntakeSessions();
+  Future<List<IntakeSession>> getUnfinishedSessions({
+    DateTime? start,
+    DateTime? end,
+  }) {
+    return _database.getUnfinishedIntakeSessions(start: start, end: end);
   }
 
   Future<Map<String, IntakeSession>> getLinkedSessionsByHealthEventId() async {
@@ -110,6 +125,50 @@ class IntakeService {
 
   Future<List<IntakeMessage>> getMessagesBySessionId(String sessionId) {
     return _database.getIntakeMessagesBySessionId(sessionId);
+  }
+
+  Future<void> hardDeleteDraftSession(String sessionId) async {
+    final IntakeSession session = await _requireSession(sessionId);
+    final bool isDraft =
+        session.healthEventId == null &&
+        (session.status == 'questioning' ||
+            session.status == 'awaiting_user_input');
+    if (!isDraft) {
+      throw const AiIntakeException(
+        type: AiIntakeExceptionType.invalidRequestPayload,
+        message: '只允许删除未完成草稿。',
+      );
+    }
+
+    final List<IntakeMessage> messages = await _database
+        .getIntakeMessagesBySessionId(sessionId);
+    final List<IntakeSessionAttachment> attachments = await _database
+        .getIntakeSessionAttachmentsBySessionId(sessionId);
+
+    await _database.transaction(() async {
+      for (final IntakeMessage message in messages) {
+        await _database.deleteIntakeMessageById(message.id);
+      }
+      for (final IntakeSessionAttachment attachment in attachments) {
+        await _database.deleteIntakeSessionAttachmentById(attachment.id);
+      }
+      await _database.deleteIntakeSessionById(sessionId);
+    });
+
+    try {
+      await _intakeAttachmentStorage.deleteStoredAttachments(
+        attachments
+            .map((IntakeSessionAttachment attachment) => attachment.filePath)
+            .toList(),
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'hardDeleteDraftSession attachment cleanup failed for $sessionId: $error',
+        name: 'IntakeService',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   Future<IntakeSubmissionResult> startIntake({
@@ -606,6 +665,27 @@ class IntakeActionController extends AutoDisposeAsyncNotifier<void> {
     if (result.healthEventId != null) {
       ref.invalidate(healthRecordDetailProvider(result.healthEventId!));
       ref.invalidate(healthRecordAttachmentsProvider(result.healthEventId!));
+    }
+  }
+}
+
+class DeleteDraftSessionController extends AutoDisposeAsyncNotifier<void> {
+  @override
+  FutureOr<void> build() {}
+
+  Future<void> deleteDraftSession(String sessionId) async {
+    state = const AsyncLoading<void>();
+    try {
+      await ref.read(intakeServiceProvider).hardDeleteDraftSession(sessionId);
+      state = const AsyncData<void>(null);
+      ref.invalidate(unfinishedIntakeSessionsProvider);
+      ref.invalidate(linkedIntakeSessionsProvider);
+      ref.invalidate(intakeSessionProvider(sessionId));
+      ref.invalidate(intakeMessagesProvider(sessionId));
+      ref.invalidate(healthRecordListProvider);
+    } catch (error, stackTrace) {
+      state = AsyncError<void>(error, stackTrace);
+      rethrow;
     }
   }
 }

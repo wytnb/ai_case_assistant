@@ -29,6 +29,16 @@ class $HealthEventsTable extends HealthEvents
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('active'),
+  );
   static const VerificationMeta _rawTextMeta = const VerificationMeta(
     'rawText',
   );
@@ -71,6 +81,17 @@ class $HealthEventsTable extends HealthEvents
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -97,10 +118,12 @@ class $HealthEventsTable extends HealthEvents
   List<GeneratedColumn> get $columns => [
     id,
     sourceType,
+    status,
     rawText,
     symptomSummary,
     notes,
     actionAdvice,
+    deletedAt,
     createdAt,
     updatedAt,
   ];
@@ -128,6 +151,12 @@ class $HealthEventsTable extends HealthEvents
       );
     } else if (isInserting) {
       context.missing(_sourceTypeMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
     }
     if (data.containsKey('raw_text')) {
       context.handle(
@@ -157,6 +186,12 @@ class $HealthEventsTable extends HealthEvents
           data['action_advice']!,
           _actionAdviceMeta,
         ),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
       );
     }
     if (data.containsKey('created_at')) {
@@ -192,6 +227,10 @@ class $HealthEventsTable extends HealthEvents
         DriftSqlType.string,
         data['${effectivePrefix}source_type'],
       )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
       rawText: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}raw_text'],
@@ -207,6 +246,10 @@ class $HealthEventsTable extends HealthEvents
       actionAdvice: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}action_advice'],
+      ),
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
       ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
@@ -228,19 +271,23 @@ class $HealthEventsTable extends HealthEvents
 class HealthEvent extends DataClass implements Insertable<HealthEvent> {
   final String id;
   final String sourceType;
+  final String status;
   final String? rawText;
   final String? symptomSummary;
   final String? notes;
   final String? actionAdvice;
+  final DateTime? deletedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
   const HealthEvent({
     required this.id,
     required this.sourceType,
+    required this.status,
     this.rawText,
     this.symptomSummary,
     this.notes,
     this.actionAdvice,
+    this.deletedAt,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -249,6 +296,7 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['source_type'] = Variable<String>(sourceType);
+    map['status'] = Variable<String>(status);
     if (!nullToAbsent || rawText != null) {
       map['raw_text'] = Variable<String>(rawText);
     }
@@ -261,6 +309,9 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
     if (!nullToAbsent || actionAdvice != null) {
       map['action_advice'] = Variable<String>(actionAdvice);
     }
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -270,6 +321,7 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
     return HealthEventsCompanion(
       id: Value(id),
       sourceType: Value(sourceType),
+      status: Value(status),
       rawText: rawText == null && nullToAbsent
           ? const Value.absent()
           : Value(rawText),
@@ -282,6 +334,9 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
       actionAdvice: actionAdvice == null && nullToAbsent
           ? const Value.absent()
           : Value(actionAdvice),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -295,10 +350,12 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
     return HealthEvent(
       id: serializer.fromJson<String>(json['id']),
       sourceType: serializer.fromJson<String>(json['sourceType']),
+      status: serializer.fromJson<String>(json['status']),
       rawText: serializer.fromJson<String?>(json['rawText']),
       symptomSummary: serializer.fromJson<String?>(json['symptomSummary']),
       notes: serializer.fromJson<String?>(json['notes']),
       actionAdvice: serializer.fromJson<String?>(json['actionAdvice']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -309,10 +366,12 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'sourceType': serializer.toJson<String>(sourceType),
+      'status': serializer.toJson<String>(status),
       'rawText': serializer.toJson<String?>(rawText),
       'symptomSummary': serializer.toJson<String?>(symptomSummary),
       'notes': serializer.toJson<String?>(notes),
       'actionAdvice': serializer.toJson<String?>(actionAdvice),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -321,21 +380,25 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
   HealthEvent copyWith({
     String? id,
     String? sourceType,
+    String? status,
     Value<String?> rawText = const Value.absent(),
     Value<String?> symptomSummary = const Value.absent(),
     Value<String?> notes = const Value.absent(),
     Value<String?> actionAdvice = const Value.absent(),
+    Value<DateTime?> deletedAt = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => HealthEvent(
     id: id ?? this.id,
     sourceType: sourceType ?? this.sourceType,
+    status: status ?? this.status,
     rawText: rawText.present ? rawText.value : this.rawText,
     symptomSummary: symptomSummary.present
         ? symptomSummary.value
         : this.symptomSummary,
     notes: notes.present ? notes.value : this.notes,
     actionAdvice: actionAdvice.present ? actionAdvice.value : this.actionAdvice,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -345,6 +408,7 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
       sourceType: data.sourceType.present
           ? data.sourceType.value
           : this.sourceType,
+      status: data.status.present ? data.status.value : this.status,
       rawText: data.rawText.present ? data.rawText.value : this.rawText,
       symptomSummary: data.symptomSummary.present
           ? data.symptomSummary.value
@@ -353,6 +417,7 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
       actionAdvice: data.actionAdvice.present
           ? data.actionAdvice.value
           : this.actionAdvice,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -363,10 +428,12 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
     return (StringBuffer('HealthEvent(')
           ..write('id: $id, ')
           ..write('sourceType: $sourceType, ')
+          ..write('status: $status, ')
           ..write('rawText: $rawText, ')
           ..write('symptomSummary: $symptomSummary, ')
           ..write('notes: $notes, ')
           ..write('actionAdvice: $actionAdvice, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -377,10 +444,12 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
   int get hashCode => Object.hash(
     id,
     sourceType,
+    status,
     rawText,
     symptomSummary,
     notes,
     actionAdvice,
+    deletedAt,
     createdAt,
     updatedAt,
   );
@@ -390,10 +459,12 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
       (other is HealthEvent &&
           other.id == this.id &&
           other.sourceType == this.sourceType &&
+          other.status == this.status &&
           other.rawText == this.rawText &&
           other.symptomSummary == this.symptomSummary &&
           other.notes == this.notes &&
           other.actionAdvice == this.actionAdvice &&
+          other.deletedAt == this.deletedAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -401,20 +472,24 @@ class HealthEvent extends DataClass implements Insertable<HealthEvent> {
 class HealthEventsCompanion extends UpdateCompanion<HealthEvent> {
   final Value<String> id;
   final Value<String> sourceType;
+  final Value<String> status;
   final Value<String?> rawText;
   final Value<String?> symptomSummary;
   final Value<String?> notes;
   final Value<String?> actionAdvice;
+  final Value<DateTime?> deletedAt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
   const HealthEventsCompanion({
     this.id = const Value.absent(),
     this.sourceType = const Value.absent(),
+    this.status = const Value.absent(),
     this.rawText = const Value.absent(),
     this.symptomSummary = const Value.absent(),
     this.notes = const Value.absent(),
     this.actionAdvice = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -422,10 +497,12 @@ class HealthEventsCompanion extends UpdateCompanion<HealthEvent> {
   HealthEventsCompanion.insert({
     required String id,
     required String sourceType,
+    this.status = const Value.absent(),
     this.rawText = const Value.absent(),
     this.symptomSummary = const Value.absent(),
     this.notes = const Value.absent(),
     this.actionAdvice = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -436,10 +513,12 @@ class HealthEventsCompanion extends UpdateCompanion<HealthEvent> {
   static Insertable<HealthEvent> custom({
     Expression<String>? id,
     Expression<String>? sourceType,
+    Expression<String>? status,
     Expression<String>? rawText,
     Expression<String>? symptomSummary,
     Expression<String>? notes,
     Expression<String>? actionAdvice,
+    Expression<DateTime>? deletedAt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -447,10 +526,12 @@ class HealthEventsCompanion extends UpdateCompanion<HealthEvent> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (sourceType != null) 'source_type': sourceType,
+      if (status != null) 'status': status,
       if (rawText != null) 'raw_text': rawText,
       if (symptomSummary != null) 'symptom_summary': symptomSummary,
       if (notes != null) 'notes': notes,
       if (actionAdvice != null) 'action_advice': actionAdvice,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -460,10 +541,12 @@ class HealthEventsCompanion extends UpdateCompanion<HealthEvent> {
   HealthEventsCompanion copyWith({
     Value<String>? id,
     Value<String>? sourceType,
+    Value<String>? status,
     Value<String?>? rawText,
     Value<String?>? symptomSummary,
     Value<String?>? notes,
     Value<String?>? actionAdvice,
+    Value<DateTime?>? deletedAt,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -471,10 +554,12 @@ class HealthEventsCompanion extends UpdateCompanion<HealthEvent> {
     return HealthEventsCompanion(
       id: id ?? this.id,
       sourceType: sourceType ?? this.sourceType,
+      status: status ?? this.status,
       rawText: rawText ?? this.rawText,
       symptomSummary: symptomSummary ?? this.symptomSummary,
       notes: notes ?? this.notes,
       actionAdvice: actionAdvice ?? this.actionAdvice,
+      deletedAt: deletedAt ?? this.deletedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -490,6 +575,9 @@ class HealthEventsCompanion extends UpdateCompanion<HealthEvent> {
     if (sourceType.present) {
       map['source_type'] = Variable<String>(sourceType.value);
     }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
     if (rawText.present) {
       map['raw_text'] = Variable<String>(rawText.value);
     }
@@ -501,6 +589,9 @@ class HealthEventsCompanion extends UpdateCompanion<HealthEvent> {
     }
     if (actionAdvice.present) {
       map['action_advice'] = Variable<String>(actionAdvice.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -519,10 +610,12 @@ class HealthEventsCompanion extends UpdateCompanion<HealthEvent> {
     return (StringBuffer('HealthEventsCompanion(')
           ..write('id: $id, ')
           ..write('sourceType: $sourceType, ')
+          ..write('status: $status, ')
           ..write('rawText: $rawText, ')
           ..write('symptomSummary: $symptomSummary, ')
           ..write('notes: $notes, ')
           ..write('actionAdvice: $actionAdvice, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -3731,10 +3824,12 @@ typedef $$HealthEventsTableCreateCompanionBuilder =
     HealthEventsCompanion Function({
       required String id,
       required String sourceType,
+      Value<String> status,
       Value<String?> rawText,
       Value<String?> symptomSummary,
       Value<String?> notes,
       Value<String?> actionAdvice,
+      Value<DateTime?> deletedAt,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -3743,10 +3838,12 @@ typedef $$HealthEventsTableUpdateCompanionBuilder =
     HealthEventsCompanion Function({
       Value<String> id,
       Value<String> sourceType,
+      Value<String> status,
       Value<String?> rawText,
       Value<String?> symptomSummary,
       Value<String?> notes,
       Value<String?> actionAdvice,
+      Value<DateTime?> deletedAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -3797,6 +3894,11 @@ class $$HealthEventsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get rawText => $composableBuilder(
     column: $table.rawText,
     builder: (column) => ColumnFilters(column),
@@ -3814,6 +3916,11 @@ class $$HealthEventsTableFilterComposer
 
   ColumnFilters<String> get actionAdvice => $composableBuilder(
     column: $table.actionAdvice,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3872,6 +3979,11 @@ class $$HealthEventsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get rawText => $composableBuilder(
     column: $table.rawText,
     builder: (column) => ColumnOrderings(column),
@@ -3889,6 +4001,11 @@ class $$HealthEventsTableOrderingComposer
 
   ColumnOrderings<String> get actionAdvice => $composableBuilder(
     column: $table.actionAdvice,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -3920,6 +4037,9 @@ class $$HealthEventsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
   GeneratedColumn<String> get rawText =>
       $composableBuilder(column: $table.rawText, builder: (column) => column);
 
@@ -3935,6 +4055,9 @@ class $$HealthEventsTableAnnotationComposer
     column: $table.actionAdvice,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -3998,20 +4121,24 @@ class $$HealthEventsTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> sourceType = const Value.absent(),
+                Value<String> status = const Value.absent(),
                 Value<String?> rawText = const Value.absent(),
                 Value<String?> symptomSummary = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<String?> actionAdvice = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HealthEventsCompanion(
                 id: id,
                 sourceType: sourceType,
+                status: status,
                 rawText: rawText,
                 symptomSummary: symptomSummary,
                 notes: notes,
                 actionAdvice: actionAdvice,
+                deletedAt: deletedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -4020,20 +4147,24 @@ class $$HealthEventsTableTableManager
               ({
                 required String id,
                 required String sourceType,
+                Value<String> status = const Value.absent(),
                 Value<String?> rawText = const Value.absent(),
                 Value<String?> symptomSummary = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<String?> actionAdvice = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
               }) => HealthEventsCompanion.insert(
                 id: id,
                 sourceType: sourceType,
+                status: status,
                 rawText: rawText,
                 symptomSummary: symptomSummary,
                 notes: notes,
                 actionAdvice: actionAdvice,
+                deletedAt: deletedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,

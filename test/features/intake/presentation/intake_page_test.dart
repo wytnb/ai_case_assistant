@@ -48,8 +48,11 @@ void main() {
     );
 
     await _pumpIntakePage(tester, database: database, intakeService: service);
+    expect(find.text('发送回答'), findsOneWidget);
+    expect(find.text('直接生成记录'), findsOneWidget);
+    expect(find.text('等待你继续补充'), findsNothing);
     await tester.enterText(find.byType(TextField), 'I added more details');
-    await tester.tap(find.text('发送'));
+    await tester.tap(find.text('发送回答'));
     await tester.pumpAndSettle();
 
     expect(find.text('detail'), findsOneWidget);
@@ -92,7 +95,8 @@ void main() {
     );
 
     await _pumpIntakePage(tester, database: database, intakeService: service);
-    await tester.tap(find.text('退出追问，生成最终记录'));
+    expect(find.text('等待你继续补充'), findsNothing);
+    await tester.tap(find.text('直接生成记录'));
     await tester.pumpAndSettle();
 
     final IntakeSession? session = await database.getIntakeSessionById(
@@ -163,7 +167,7 @@ void main() {
     await _pumpIntakePage(tester, database: database, intakeService: service);
     await tester.pumpAndSettle();
 
-    expect(find.text('Could you share how long it lasted?'), findsNWidgets(2));
+    expect(find.text('Could you share how long it lasted?'), findsOneWidget);
     expect(
       (await database.getIntakeSessionById('session-1'))!.status,
       'awaiting_user_input',

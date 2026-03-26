@@ -75,10 +75,12 @@
 |---|---|---|---|
 | `id` | `String` | 正式记录 ID | UUID |
 | `sourceType` | `String` | 来源类型 | 当前固定为 `text` |
+| `status` | `String` | 正式记录状态 | `active/deleted` |
 | `rawText` | `String?` | 正式记录原始描述 | `/ai/intake` 完成时使用 `draft.mergedRawText` |
 | `symptomSummary` | `String?` | 正式记录摘要 | 不做 fallback，不做内容纠偏 |
 | `notes` | `String?` | 正式记录备注 | 允许空字符串 |
 | `actionAdvice` | `String?` | 正式记录建议 | 来源于最终 `draft.actionAdvice` |
+| `deletedAt` | `DateTime?` | 正式记录删除时间 | 仅 `status=deleted` 时非空 |
 | `createdAt` | `DateTime` | 正式记录创建时间 | 首次完成时等于 `session.eventTime` |
 | `updatedAt` | `DateTime` | 最后更新时间 | 重新追问完成时刷新 |
 
@@ -109,10 +111,11 @@
 - `IntakeSession`
   - 创建：新建记录时创建
   - 更新：继续追问、强制结束、重新追问、完成正式记录时更新
-  - 删除：当前没有独立用户入口
+  - 删除：未完成草稿允许用户硬删除；已关联正式记录被删除时可标记为 `deleted`
 - `HealthEvent`
   - 创建：第一次 `final` 时写入
   - 更新：重新追问完成时更新原记录
+  - 删除：用户删除时改为软删除，保留数据库行
 - `Report`
   - 创建：报告首次生成
   - 覆盖：同 `reportType + rangeStart + rangeEnd` 再生成时覆盖
@@ -126,3 +129,4 @@
 - 未完成追问不能写入 `health_events` 或报告输入。
 - `symptomSummary` 只要字段存在且类型为字符串，就保留原值，哪怕为空或很短。
 - 重新追问完成时更新原 `HealthEvent`，不创建重复正式记录。
+- `status=deleted` 的正式记录不再参与列表、详情、继续补充入口和报告输入。

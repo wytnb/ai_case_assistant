@@ -36,6 +36,7 @@
 - `docs/11-regression-matrix.md`：高风险模块与回归矩阵
 - `docs/12-release-smoke-checklist.md`：本地演示 / 阶段发布 smoke 清单
 - `docs/13-requirement-deltas.md`：需求理解、范围边界与阶段性取舍变更记录
+- `docs/14-android-real-device-testing-sop.md`：Android 真机连接、安装、运行、日志与排障 SOP
 
 ### ADR
 
@@ -55,6 +56,7 @@
 5. `docs/05-system-architecture.md`
 6. `docs/09-env-and-runbook.md`
 7. `docs/10-testing-strategy.md`
+8. `docs/14-android-real-device-testing-sop.md`
 
 ### 处理页面或流程任务
 
@@ -75,3 +77,10 @@
 1. `docs/05-system-architecture.md`
 2. 相关 ADR
 3. `docs/11-regression-matrix.md`
+
+### 处理 Android 真机、演示或安装任务
+
+1. `docs/09-env-and-runbook.md`
+2. `docs/10-testing-strategy.md`
+3. `docs/14-android-real-device-testing-sop.md`
+4. `docs/12-release-smoke-checklist.md`

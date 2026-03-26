@@ -9,6 +9,7 @@ import 'package:ai_case_assistant/features/ai/domain/services/ai_extract_service
 import 'package:ai_case_assistant/features/ai/presentation/providers/ai_extract_service_provider.dart';
 import 'package:ai_case_assistant/features/health_record/data/local/health_record_attachment_storage.dart';
 import 'package:drift/drift.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -30,7 +31,11 @@ final Provider<HealthRecordService> healthRecordServiceProvider =
 
 final FutureProvider<List<HealthEvent>> healthRecordListProvider =
     FutureProvider<List<HealthEvent>>((Ref ref) {
-      return ref.watch(healthRecordServiceProvider).getAllHealthRecords();
+      final DateTimeRange? filter = ref.watch(recordEventTimeFilterProvider);
+      return ref.watch(healthRecordServiceProvider).getAllHealthRecords(
+        start: filter?.start,
+        end: filter?.end,
+      );
     });
 
 final healthRecordDetailProvider = FutureProvider.family<HealthEvent?, String>((
@@ -51,6 +56,15 @@ final AutoDisposeAsyncNotifierProvider<CreateHealthRecordController, void>
 createHealthRecordControllerProvider =
     AutoDisposeAsyncNotifierProvider<CreateHealthRecordController, void>(
       CreateHealthRecordController.new,
+    );
+
+final StateProvider<DateTimeRange?> recordEventTimeFilterProvider =
+    StateProvider<DateTimeRange?>((Ref ref) => null);
+
+final AutoDisposeAsyncNotifierProvider<DeleteHealthRecordController, void>
+deleteHealthRecordControllerProvider =
+    AutoDisposeAsyncNotifierProvider<DeleteHealthRecordController, void>(
+      DeleteHealthRecordController.new,
     );
 
 class HealthRecordService {
@@ -159,8 +173,11 @@ class HealthRecordService {
     return healthEventId;
   }
 
-  Future<List<HealthEvent>> getAllHealthRecords() {
-    return _database.getAllHealthEvents();
+  Future<List<HealthEvent>> getAllHealthRecords({
+    DateTime? start,
+    DateTime? end,
+  }) {
+    return _database.getAllHealthEvents(start: start, end: end);
   }
 
   Future<HealthEvent?> getHealthRecordDetail(String id) {
@@ -169,6 +186,41 @@ class HealthRecordService {
 
   Future<List<Attachment>> getAttachmentsByHealthEventId(String healthEventId) {
     return _database.getAttachmentsByHealthEventId(healthEventId);
+  }
+
+  Future<void> softDeleteHealthRecord(String healthEventId) async {
+    final HealthEvent? record = await _database.getHealthEventByIdIncludingDeleted(
+      healthEventId,
+    );
+    if (record == null || record.status == 'deleted') {
+      return;
+    }
+
+    final IntakeSession? linkedSession = await _database.getIntakeSessionByHealthEventId(
+      healthEventId,
+    );
+    final DateTime now = _truncateToSeconds(DateTime.now());
+
+    await _database.transaction(() async {
+      await _database.updateHealthEventById(
+        healthEventId,
+        HealthEventsCompanion(
+          status: const Value<String>('deleted'),
+          deletedAt: Value<DateTime?>(now),
+          updatedAt: Value<DateTime>(now),
+        ),
+      );
+
+      if (linkedSession != null) {
+        await _database.updateIntakeSessionById(
+          linkedSession.id,
+          IntakeSessionsCompanion(
+            status: const Value<String>('deleted'),
+            updatedAt: Value<DateTime>(now),
+          ),
+        );
+      }
+    });
   }
 
   String _normalizeStoredText(String value) {
@@ -223,6 +275,28 @@ class CreateHealthRecordController extends AutoDisposeAsyncNotifier<void> {
       ref.invalidate(healthRecordAttachmentsProvider(id));
 
       return id;
+    } catch (error, stackTrace) {
+      state = AsyncError<void>(error, stackTrace);
+      rethrow;
+    }
+  }
+}
+
+class DeleteHealthRecordController extends AutoDisposeAsyncNotifier<void> {
+  @override
+  FutureOr<void> build() {}
+
+  Future<void> deleteHealthRecord(String healthEventId) async {
+    state = const AsyncLoading<void>();
+
+    try {
+      await ref
+          .read(healthRecordServiceProvider)
+          .softDeleteHealthRecord(healthEventId);
+      state = const AsyncData<void>(null);
+      ref.invalidate(healthRecordListProvider);
+      ref.invalidate(healthRecordDetailProvider(healthEventId));
+      ref.invalidate(healthRecordAttachmentsProvider(healthEventId));
     } catch (error, stackTrace) {
       state = AsyncError<void>(error, stackTrace);
       rethrow;

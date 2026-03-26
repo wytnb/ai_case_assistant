@@ -76,10 +76,12 @@
 |---|---|---|---|
 | `id` | TEXT | PK | 正式记录 ID |
 | `source_type` | TEXT | NOT NULL | 当前固定为 `text` |
+| `status` | TEXT | NOT NULL | `active/deleted` |
 | `raw_text` | TEXT | NULLABLE | 正式记录原始描述 |
 | `symptom_summary` | TEXT | NULLABLE | 正式记录摘要 |
 | `notes` | TEXT | NULLABLE | 正式记录备注 |
 | `action_advice` | TEXT | NULLABLE | 正式记录建议 |
+| `deleted_at` | INTEGER/DATETIME | NULLABLE | 正式记录删除时间 |
 | `created_at` | INTEGER/DATETIME | NOT NULL | 正式记录创建时间 |
 | `updated_at` | INTEGER/DATETIME | NOT NULL | 正式记录最后更新时间 |
 
@@ -104,7 +106,7 @@
 
 ## 迁移策略
 
-- 当前 `schemaVersion = 5`
+- 当前 `schemaVersion = 6`
 - `from < 2`
   - 创建 `reports`
 - `from < 3`
@@ -115,6 +117,9 @@
   - 创建 `intake_sessions`
   - 创建 `intake_messages`
   - 创建 `intake_session_attachments`
+- `from >= 4 && from < 6`
+  - 对 `health_events` 新增 `status`
+  - 对 `health_events` 新增 `deleted_at`
 
 补充事实：
 
@@ -123,8 +128,16 @@
 
 ## 删除与清理策略
 
-- 当前没有用户可见的记录删除入口。
-- 会话完成后，暂存附件会转正为正式附件；未完成会话仍保留暂存附件。
+- 正式记录删除为软删除：
+  - `health_events.status = deleted`
+  - `health_events.deleted_at` 写入删除时间
+  - 不物理删除正式记录、正式附件和报告
+- 草稿记录删除为硬删除：
+  - 删除 `intake_sessions`
+  - 删除 `intake_messages`
+  - 删除 `intake_session_attachments`
+  - 删除暂存附件文件
+- 会话完成后，暂存附件会转正为正式附件；未完成会话未被删除时仍保留暂存附件。
 - 报告重复生成时，保留最新结果并清理同范围旧结果。
 
 ## 兼容要求
@@ -132,5 +145,6 @@
 - 缺失 `follow_up_mode_enabled` 时，必须由 `SettingsRepository` 返回默认值 `false`。
 - 缺失或类型异常的 `first_use_disclaimer_accepted`，必须由 `SettingsRepository` 返回默认值 `false`。
 - 未完成追问不得出现在正式记录列表与报告查询中。
+- `status=deleted` 的正式记录不得出现在正式记录列表、详情与报告查询中。
 - `symptom_summary`、`notes`、`action_advice` 允许为空字符串。
 - 旧 `/ai/extract` 历史记录在 schema 5 下仍可正常读取。

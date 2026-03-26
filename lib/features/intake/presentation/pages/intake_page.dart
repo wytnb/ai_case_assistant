@@ -108,10 +108,31 @@ class _IntakePageState extends ConsumerState<IntakePage> {
     final AsyncValue<void> actionState = ref.watch(
       intakeActionControllerProvider,
     );
+    final AsyncValue<void> deleteState = ref.watch(
+      deleteDraftSessionControllerProvider,
+    );
     final bool isSubmitting = actionState.isLoading;
+    final IntakeSession? currentSession = sessionAsync.valueOrNull;
+    final bool canDeleteDraft =
+        currentSession != null &&
+        currentSession.healthEventId == null &&
+        (currentSession.status == 'questioning' ||
+            currentSession.status == 'awaiting_user_input');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('继续追问')),
+      appBar: AppBar(
+        title: const Text('继续追问'),
+        actions: <Widget>[
+          if (canDeleteDraft)
+            IconButton(
+                onPressed: deleteState.isLoading
+                    ? null
+                    : () => _deleteDraftSession(context),
+                icon: const Icon(Icons.delete_outline),
+                tooltip: '删除草稿记录',
+              ),
+        ],
+      ),
       body: sessionAsync.when(
         data: (IntakeSession? session) {
           if (session == null) {
@@ -143,7 +164,8 @@ class _IntakePageState extends ConsumerState<IntakePage> {
                               _MessageBubble(message: message),
                         ),
                         const SizedBox(height: 8),
-                        _StatusCard(session: session),
+                        if (session.status != 'awaiting_user_input')
+                          _StatusCard(session: session),
                         if (actionState.hasError) ...<Widget>[
                           const SizedBox(height: 12),
                           Text(
@@ -202,7 +224,7 @@ class _IntakePageState extends ConsumerState<IntakePage> {
                                       onPressed: isSubmitting
                                           ? null
                                           : _forceFinalize,
-                                      child: const Text('退出追问，生成最终记录'),
+                                      child: const Text('直接生成记录'),
                                     ),
                                   ),
                                 if (showForceFinalize)
@@ -210,7 +232,9 @@ class _IntakePageState extends ConsumerState<IntakePage> {
                                 Expanded(
                                   child: FilledButton(
                                     onPressed: canReply ? _submitReply : null,
-                                    child: Text(isSubmitting ? '提交中…' : '发送'),
+                                    child: Text(
+                                      isSubmitting ? '提交中…' : '发送回答',
+                                    ),
                                   ),
                                 ),
                               ],
@@ -240,6 +264,51 @@ class _IntakePageState extends ConsumerState<IntakePage> {
     }
 
     return '追问失败，请稍后重试。';
+  }
+
+  Future<void> _deleteDraftSession(BuildContext context) async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('删除草稿记录'),
+          content: const Text('删除后，这条草稿的追问内容和暂存附件都会被清空，且无法恢复。'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('确认删除'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    try {
+      await ref
+          .read(deleteDraftSessionControllerProvider.notifier)
+          .deleteDraftSession(widget.sessionId);
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('草稿记录已删除。')));
+      context.go('/records');
+    } catch (_) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('删除失败，请稍后重试。')));
+    }
   }
 }
 

@@ -8,6 +8,8 @@ class HealthEvents extends Table {
 
   TextColumn get sourceType => text()();
 
+  TextColumn get status => text().withDefault(const Constant('active'))();
+
   TextColumn get rawText => text().nullable()();
 
   TextColumn get symptomSummary => text().nullable()();
@@ -15,6 +17,8 @@ class HealthEvents extends Table {
   TextColumn get notes => text().nullable()();
 
   TextColumn get actionAdvice => text().nullable()();
+
+  DateTimeColumn get deletedAt => dateTime().nullable()();
 
   DateTimeColumn get createdAt => dateTime()();
 

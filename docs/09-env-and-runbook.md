@@ -63,6 +63,8 @@ python scripts/check_doc_sync.py --working-tree --no-strict
 
 ## 验证分层入口
 
+Android 真机的连接、安装、运行、日志与排障统一见 [docs/14-android-real-device-testing-sop.md](docs/14-android-real-device-testing-sop.md)。本节只保留验证分层入口与触发边界。
+
 ### 默认快速验证
 
 绝大多数任务默认只跑这一层：
@@ -110,15 +112,11 @@ python scripts/check_doc_sync.py --working-tree --no-strict
 - Android 安装、启动、包体、权限、代理网络相关变化
 - 演示版、候选发布版、最终交付前验收
 
-建议步骤：
+执行摘要：
 
-1. 安装并启动 Android 包
-2. 打开新增记录页并选择图片，确认系统相册可正常打开
-3. 检查图片权限与失败提示
-4. 检查选图后的缩略图显示
-5. 保存记录后检查附件已复制到应用私有目录并可在详情页回显
-6. 点击图片进入全屏预览
-7. 重启 App 后再次打开详情页，确认数据与附件仍可读取
+1. 先按 [docs/14-android-real-device-testing-sop.md](docs/14-android-real-device-testing-sop.md) 完成设备连接、安装 / 运行与日志准备。
+2. 再按本节触发条件和 [docs/12-release-smoke-checklist.md](docs/12-release-smoke-checklist.md) 完成相册、权限、附件、预览、重启回显与真实 AI 链路验证。
+3. 只有真机在保留代理的前提下仍无法打通真实 AI 文本链路时，才评估 Web Chrome 备用 smoke。
 
 说明：
 
@@ -151,7 +149,7 @@ python scripts/check_doc_sync.py --working-tree --no-strict
 3. 固定执行 `fvm flutter test`
 4. 如触及 `/ai/intake`、`/ai/extract`、`features/ai/`、`core/network/`、`core/config/` 或环境变量，评估并尽量执行真实 AI 测试
 5. 如只是纯文本主链路、关键页面或导航变化，优先执行 Android 模拟器 smoke
-6. 如涉及相册、附件、本地文件、安装、权限或代理网络，必须执行 Android 真机 smoke
+6. 如涉及相册、附件、本地文件、安装、权限或代理网络，必须执行 Android 真机 smoke，操作步骤统一按 [docs/14-android-real-device-testing-sop.md](docs/14-android-real-device-testing-sop.md)
 7. 只有真机在保留代理的前提下仍无法打通真实 AI 文本链路时，才追加 Web Chrome smoke，并明确它不能替代 Android 验证
 
 ## 当前平台与标识事实
@@ -171,7 +169,7 @@ python scripts/check_doc_sync.py --working-tree --no-strict
   - 检查 `AI_API_BASE_URL` 与网络状态
   - 注意 `USE_MOCK_AI_EXTRACT` 只覆盖旧 `/ai/extract`，不能替代 `/ai/intake`
 - 真机依赖代理访问 AI
-  - 保留代理并结合应用日志继续排查
+  - 保留代理并结合 [docs/14-android-real-device-testing-sop.md](docs/14-android-real-device-testing-sop.md) 的日志步骤继续排查
 - 真机真实 AI 主链路受阻
   - 先在保留代理的前提下继续排查网络、证书、上游连通性
   - 仅在需要补文本链路验证且真机仍不可行时，追加 Web Chrome smoke

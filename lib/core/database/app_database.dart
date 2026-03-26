@@ -31,7 +31,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -48,6 +48,8 @@ class AppDatabase extends _$AppDatabase {
                 'event_time',
               ),
               healthEvents.actionAdvice: const CustomExpression<Object>('NULL'),
+              healthEvents.status: const Constant<String>('active'),
+              healthEvents.deletedAt: const CustomExpression<DateTime>('NULL'),
             },
           ),
         );
@@ -57,6 +59,8 @@ class AppDatabase extends _$AppDatabase {
             healthEvents,
             columnTransformer: <GeneratedColumn<Object>, Expression<Object>>{
               healthEvents.actionAdvice: const CustomExpression<Object>('NULL'),
+              healthEvents.status: const Constant<String>('active'),
+              healthEvents.deletedAt: const CustomExpression<DateTime>('NULL'),
             },
           ),
         );
@@ -69,17 +73,61 @@ class AppDatabase extends _$AppDatabase {
         await migrator.createTable(intakeMessages);
         await migrator.createTable(intakeSessionAttachments);
       }
+      if (from >= 4 && from < 6) {
+        await migrator.addColumn(healthEvents, healthEvents.status);
+        await migrator.addColumn(healthEvents, healthEvents.deletedAt);
+      }
     },
   );
 
-  Future<List<HealthEvent>> getAllHealthEvents() {
-    return (select(healthEvents)..orderBy(<OrderingTerm Function(HealthEvents)>[
-          (HealthEvents table) => OrderingTerm.desc(table.createdAt),
-        ]))
+  Expression<bool> _isActiveHealthEvent(HealthEvents table) {
+    return table.status.equals('active');
+  }
+
+  Expression<bool> _isVisibleIntakeSession(IntakeSessions table) {
+    return table.status.equals('questioning') |
+        table.status.equals('awaiting_user_input') |
+        table.status.equals('finalized') |
+        table.status.equals('finalized_by_force');
+  }
+
+  Expression<bool> _isUnfinishedIntakeSession(IntakeSessions table) {
+    return table.status.equals('questioning') |
+        table.status.equals('awaiting_user_input');
+  }
+
+  Future<List<HealthEvent>> getAllHealthEvents({
+    DateTime? start,
+    DateTime? end,
+  }) {
+    return (select(healthEvents)
+          ..where(
+            (HealthEvents table) {
+              Expression<bool> predicate = _isActiveHealthEvent(table);
+              if (start != null) {
+                predicate = predicate & table.createdAt.isBiggerOrEqualValue(start);
+              }
+              if (end != null) {
+                predicate = predicate & table.createdAt.isSmallerOrEqualValue(end);
+              }
+              return predicate;
+            },
+          )
+          ..orderBy(<OrderingTerm Function(HealthEvents)>[
+            (HealthEvents table) => OrderingTerm.desc(table.createdAt),
+          ]))
         .get();
   }
 
   Future<HealthEvent?> getHealthEventById(String id) {
+    return (select(healthEvents)..where(
+          (HealthEvents table) =>
+              table.id.equals(id) & _isActiveHealthEvent(table),
+        ))
+        .getSingleOrNull();
+  }
+
+  Future<HealthEvent?> getHealthEventByIdIncludingDeleted(String id) {
     return (select(
       healthEvents,
     )..where((HealthEvents table) => table.id.equals(id))).getSingleOrNull();
@@ -89,16 +137,7 @@ class AppDatabase extends _$AppDatabase {
     required DateTime rangeStart,
     required DateTime rangeEnd,
   }) {
-    return (select(healthEvents)
-          ..where(
-            (HealthEvents table) =>
-                table.createdAt.isBiggerOrEqualValue(rangeStart) &
-                table.createdAt.isSmallerOrEqualValue(rangeEnd),
-          )
-          ..orderBy(<OrderingTerm Function(HealthEvents)>[
-            (HealthEvents table) => OrderingTerm.desc(table.createdAt),
-          ]))
-        .get();
+    return getAllHealthEvents(start: rangeStart, end: rangeEnd);
   }
 
   Future<void> insertHealthEvent(HealthEventsCompanion companion) async {
@@ -153,24 +192,53 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<IntakeSession?> getIntakeSessionById(String id) {
+    return (select(intakeSessions)..where(
+          (IntakeSessions table) =>
+              table.id.equals(id) & _isVisibleIntakeSession(table),
+        ))
+        .getSingleOrNull();
+  }
+
+  Future<IntakeSession?> getIntakeSessionByIdIncludingDeleted(String id) {
     return (select(
       intakeSessions,
     )..where((IntakeSessions table) => table.id.equals(id))).getSingleOrNull();
   }
 
   Future<IntakeSession?> getIntakeSessionByHealthEventId(String healthEventId) {
-    return (select(intakeSessions)..where(
-          (IntakeSessions table) => table.healthEventId.equals(healthEventId),
-        ))
-        .getSingleOrNull();
+    final JoinedSelectStatement<HasResultSet, dynamic> query = select(
+      intakeSessions,
+    ).join(<Join>[
+      innerJoin(
+        healthEvents,
+        healthEvents.id.equalsExp(intakeSessions.healthEventId) &
+            _isActiveHealthEvent(healthEvents),
+      ),
+    ])
+      ..where(
+        intakeSessions.healthEventId.equals(healthEventId) &
+            _isVisibleIntakeSession(intakeSessions),
+      );
+
+    return query.map((TypedResult row) => row.readTable(intakeSessions)).getSingleOrNull();
   }
 
-  Future<List<IntakeSession>> getUnfinishedIntakeSessions() {
+  Future<List<IntakeSession>> getUnfinishedIntakeSessions({
+    DateTime? start,
+    DateTime? end,
+  }) {
     return (select(intakeSessions)
           ..where(
-            (IntakeSessions table) =>
-                table.status.equals('questioning') |
-                table.status.equals('awaiting_user_input'),
+            (IntakeSessions table) {
+              Expression<bool> predicate = _isUnfinishedIntakeSession(table);
+              if (start != null) {
+                predicate = predicate & table.eventTime.isBiggerOrEqualValue(start);
+              }
+              if (end != null) {
+                predicate = predicate & table.eventTime.isSmallerOrEqualValue(end);
+              }
+              return predicate;
+            },
           )
           ..orderBy(<OrderingTerm Function(IntakeSessions)>[
             (IntakeSessions table) => OrderingTerm.desc(table.updatedAt),
@@ -179,9 +247,21 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<List<IntakeSession>> getLinkedIntakeSessions() {
-    return (select(
+    final JoinedSelectStatement<HasResultSet, dynamic> query = select(
       intakeSessions,
-    )..where((IntakeSessions table) => table.healthEventId.isNotNull())).get();
+    ).join(<Join>[
+      innerJoin(
+        healthEvents,
+        healthEvents.id.equalsExp(intakeSessions.healthEventId) &
+            _isActiveHealthEvent(healthEvents),
+      ),
+    ])
+      ..where(
+        intakeSessions.healthEventId.isNotNull() &
+            _isVisibleIntakeSession(intakeSessions),
+      );
+
+    return query.map((TypedResult row) => row.readTable(intakeSessions)).get();
   }
 
   Future<void> insertIntakeMessage(IntakeMessagesCompanion companion) async {
@@ -238,6 +318,28 @@ class AppDatabase extends _$AppDatabase {
     await (delete(
       intakeSessions,
     )..where((IntakeSessions table) => table.id.equals(id))).go();
+  }
+
+  Future<bool> reportHasDeletedSourceRecords(String reportId) async {
+    final Report? report = await getReportById(reportId);
+    if (report == null) {
+      return false;
+    }
+
+    final HealthEvent? match = await (select(healthEvents)
+          ..where(
+            (HealthEvents row) =>
+                row.status.equals('deleted') &
+                row.createdAt.isBiggerOrEqualValue(report.rangeStart) &
+                row.createdAt.isSmallerOrEqualValue(report.rangeEnd) &
+                row.createdAt.isSmallerOrEqualValue(report.generatedAt) &
+                row.deletedAt.isNotNull() &
+                row.deletedAt.isBiggerThanValue(report.generatedAt),
+          )
+          ..limit(1))
+        .getSingleOrNull();
+
+    return match != null;
   }
 
   Future<void> insertReport(ReportsCompanion companion) async {

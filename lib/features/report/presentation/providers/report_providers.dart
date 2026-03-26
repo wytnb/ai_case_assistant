@@ -50,6 +50,13 @@ final FutureProviderFamily<Report?, String> reportDetailProvider =
       return ref.watch(reportServiceProvider).getReportDetail(id);
     });
 
+final FutureProviderFamily<bool, String> reportHasDeletedSourceRecordsProvider =
+    FutureProvider.family<bool, String>((Ref ref, String id) {
+      return ref
+          .watch(reportServiceProvider)
+          .reportHasDeletedSourceRecords(id);
+    });
+
 final AutoDisposeAsyncNotifierProvider<GenerateWeeklyReportController, void>
 generateWeeklyReportControllerProvider =
     AutoDisposeAsyncNotifierProvider<GenerateWeeklyReportController, void>(
@@ -176,6 +183,10 @@ class ReportService {
 
   Future<Report?> getReportDetail(String id) {
     return _database.getReportById(id);
+  }
+
+  Future<bool> reportHasDeletedSourceRecords(String reportId) {
+    return _database.reportHasDeletedSourceRecords(reportId);
   }
 
   String? _normalizeOptionalText(String? value) {

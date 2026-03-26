@@ -171,6 +171,100 @@ void main() {
 
       expect(records.map((HealthEvent item) => item.id), <String>['included']);
     });
+
+    test('soft-deleted records are hidden from active queries', () async {
+      final DateTime createdAt = DateTime.parse('2026-03-15T09:00:00.000');
+      await database.insertHealthEvent(
+        HealthEventsCompanion.insert(
+          id: 'record-1',
+          sourceType: 'text',
+          rawText: const Value<String?>('raw text'),
+          symptomSummary: const Value<String?>('summary'),
+          notes: const Value<String?>('notes'),
+          createdAt: createdAt,
+          updatedAt: createdAt,
+        ),
+      );
+
+      await database.updateHealthEventById(
+        'record-1',
+        HealthEventsCompanion(
+          status: const Value<String>('deleted'),
+          deletedAt: Value<DateTime?>(
+            DateTime.parse('2026-03-20T10:00:00.000'),
+          ),
+        ),
+      );
+
+      expect(await database.getHealthEventById('record-1'), isNull);
+      expect(await database.getAllHealthEvents(), isEmpty);
+      expect(await database.getHealthEventsByRange(
+        rangeStart: DateTime.parse('2026-03-15T00:00:00.000'),
+        rangeEnd: DateTime.parse('2026-03-16T00:00:00.000'),
+      ), isEmpty);
+
+      final HealthEvent? stored = await database.getHealthEventByIdIncludingDeleted(
+        'record-1',
+      );
+      expect(stored, isNotNull);
+      expect(stored!.status, 'deleted');
+      expect(stored.deletedAt, isNotNull);
+    });
+
+    test('report deleted-source hint only matches records deleted after generation', () async {
+      final DateTime rangeStart = DateTime.parse('2026-03-13T00:00:00.000');
+      final DateTime rangeEnd = DateTime.parse('2026-03-19T23:59:59.999');
+      final DateTime generatedAt = DateTime.parse('2026-03-19T10:00:00.000');
+      await database.insertReport(
+        ReportsCompanion.insert(
+          id: 'report-1',
+          reportType: 'week',
+          rangeStart: rangeStart,
+          rangeEnd: rangeEnd,
+          title: '周报标题',
+          summary: '周报摘要',
+          adviceJson: '[]',
+          markdown: 'markdown',
+          generatedAt: generatedAt,
+          createdAt: generatedAt,
+        ),
+      );
+      await database.insertHealthEvent(
+        HealthEventsCompanion.insert(
+          id: 'record-1',
+          sourceType: 'text',
+          rawText: const Value<String?>('raw text'),
+          symptomSummary: const Value<String?>('summary'),
+          notes: const Value<String?>('notes'),
+          createdAt: DateTime.parse('2026-03-18T09:00:00.000'),
+          updatedAt: DateTime.parse('2026-03-20T10:00:00.000'),
+          status: const Value<String>('deleted'),
+          deletedAt: Value<DateTime?>(
+            DateTime.parse('2026-03-20T10:00:00.000'),
+          ),
+        ),
+      );
+      await database.insertHealthEvent(
+        HealthEventsCompanion.insert(
+          id: 'record-2',
+          sourceType: 'text',
+          rawText: const Value<String?>('old deleted'),
+          symptomSummary: const Value<String?>('summary'),
+          notes: const Value<String?>('notes'),
+          createdAt: DateTime.parse('2026-03-17T09:00:00.000'),
+          updatedAt: DateTime.parse('2026-03-18T08:00:00.000'),
+          status: const Value<String>('deleted'),
+          deletedAt: Value<DateTime?>(
+            DateTime.parse('2026-03-18T08:00:00.000'),
+          ),
+        ),
+      );
+
+      expect(
+        await database.reportHasDeletedSourceRecords('report-1'),
+        isTrue,
+      );
+    });
   });
 
   test(
@@ -242,12 +336,15 @@ void main() {
         NativeDatabase.opened(legacyDatabase, closeUnderlyingOnClose: false),
       );
 
-      final HealthEvent? record = await database.getHealthEventById('legacy-2');
+      final HealthEvent? record = await database.getHealthEventByIdIncludingDeleted(
+        'legacy-2',
+      );
       final List<QueryRow> columns = await _healthEventColumns(database);
 
       expect(record, isNotNull);
       expect(record!.createdAt, oldEventTime);
       expect(record.updatedAt, oldEventTime);
+      expect(record.status, 'active');
       expect(
         columns.map((QueryRow row) => row.read<String>('name')),
         isNot(contains('event_time')),
@@ -339,13 +436,16 @@ void main() {
         NativeDatabase.opened(legacyDatabase, closeUnderlyingOnClose: false),
       );
 
-      final HealthEvent? record = await database.getHealthEventById('legacy-3');
+      final HealthEvent? record = await database.getHealthEventByIdIncludingDeleted(
+        'legacy-3',
+      );
       final List<QueryRow> columns = await _healthEventColumns(database);
 
       expect(record, isNotNull);
       expect(record!.createdAt, createdAt);
       expect(record.updatedAt, updatedAt);
       expect(record.rawText, 'old raw text');
+      expect(record.status, 'active');
       expect(
         columns.map((QueryRow row) => row.read<String>('name')),
         isNot(contains('event_start_time')),
@@ -361,7 +461,7 @@ void main() {
   );
 
   test(
-    'migrates schema 4 by adding actionAdvice and new intake tables',
+    'migrates schema 4 by adding actionAdvice, deletion columns, and new intake tables',
     () async {
       final sqlite.Database legacyDatabase = sqlite.sqlite3.openInMemory();
       final DateTime createdAt = DateTime.parse('2026-03-14T07:30:00.000');
@@ -425,7 +525,9 @@ void main() {
         NativeDatabase.opened(legacyDatabase, closeUnderlyingOnClose: false),
       );
 
-      final HealthEvent? record = await database.getHealthEventById('legacy-4');
+      final HealthEvent? record = await database.getHealthEventByIdIncludingDeleted(
+        'legacy-4',
+      );
       final List<QueryRow> healthEventColumns = await _tableColumns(
         database,
         'health_events',
@@ -440,6 +542,12 @@ void main() {
         healthEventColumns.map((QueryRow row) => row.read<String>('name')),
         contains('action_advice'),
       );
+      expect(
+        healthEventColumns.map((QueryRow row) => row.read<String>('name')),
+        containsAll(<String>['status', 'deleted_at']),
+      );
+      expect(record.status, 'active');
+      expect(record.deletedAt, isNull);
       expect(
         tableRows.map((QueryRow row) => row.read<String>('name')),
         containsAll(<String>[

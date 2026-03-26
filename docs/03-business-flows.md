@@ -9,7 +9,8 @@
 - 中断后恢复追问
 - 提前结束追问
 - 基于正式记录重新开启追问
-- 浏览正式记录与未完成追问
+- 浏览正式记录与草稿记录
+- 删除正式记录或草稿记录
 - 生成并查看健康报告
 
 ## 主流程
@@ -54,7 +55,7 @@
 ### 流程 4：继续追问直到完成
 
 1. 用户进入 `/intake/:id`。
-2. 页面展示消息历史、当前问题、输入框和发送按钮。
+2. 页面展示消息历史、输入框和发送按钮；`awaiting_user_input` 状态不再额外展示“等待你继续补充”说明卡。
 3. 用户输入补充内容并发送。
 4. 客户端将该轮 user message 落库，重新带完整消息历史调用 `POST /ai/intake`。
 5. 如果返回 `needs_followup`，继续更新草稿和消息历史。
@@ -63,13 +64,13 @@
 ### 流程 5：中断后恢复追问
 
 1. 用户在追问过程中离开页面、关闭 App 或杀进程。
-2. 重新进入应用后，`/records` 顶部“未完成追问”分区展示 `questioning` 或 `awaiting_user_input` 会话。
+2. 重新进入应用后，`/records` 的“草稿记录” tab 展示 `questioning` 或 `awaiting_user_input` 会话。
 3. 用户点击“继续追问”进入 `/intake/:id`。
 4. 如果该会话状态仍是 `questioning`，页面会自动重放当前完整历史，继续请求 AI 完成本轮。
 
 ### 流程 6：提前结束追问
 
-1. 用户在追问页点击“退出追问，生成最终记录”。
+1. 用户在追问页点击“直接生成记录”。
 2. 客户端调用 `POST /ai/intake`，请求中：
    - `followUpMode=true`
    - `forceFinalize=true`
@@ -81,18 +82,19 @@
 ### 流程 7：重新开启追问
 
 1. 用户打开一个已关联 intake session 的正式记录详情页。
-2. 点击“继续补充并重新追问”。
+2. 点击“追加补充”。
 3. 客户端进入原 session 对应的 `/intake/:id`。
 4. 用户补充新信息后再次调用 `/ai/intake`。
 5. 最终完成时更新原正式记录，不新建重复记录。
 
-### 流程 8：浏览正式记录与未完成追问
+### 流程 8：浏览正式记录与草稿记录
 
 1. 用户进入 `/records`。
-2. 顶部分区展示未完成追问会话，按 `updatedAt` 倒序。
-3. 下方展示正式 `health_events` 列表，按 `createdAt` 倒序。
-4. 未完成会话不会出现在正式记录区。
-5. 只有已关联 intake session 的正式记录才展示“继续补充”入口。
+2. 页面显示“正式记录 / 草稿记录”两个 tab。
+3. 用户可按 `eventTime` 选择日期范围筛选；正式记录按 `createdAt` 过滤，草稿按 `eventTime` 过滤。
+4. “草稿记录” tab 展示 `questioning` 或 `awaiting_user_input` 会话，按 `updatedAt` 倒序。
+5. “正式记录” tab 展示正式 `health_events`，按 `createdAt` 倒序。
+6. 草稿 tab 在筛选结果数量大于 0 时显示数字标识。
 
 ### 流程 9：生成并查看健康报告
 
@@ -103,6 +105,24 @@
 5. 报告结果写入或覆盖 `reports`。
 6. 未完成追问草稿不会进入报告输入。
 7. 用户进入 `/reports/:id` 时，页面末尾固定展示免责说明。
+8. 如果该报告覆盖的某些正式记录在报告生成后被删除，详情页额外展示红字提示“部分记录来源已被删除”。
+
+### 流程 10：删除正式记录或草稿记录
+
+1. 用户可在 `/records` 列表页删除单条正式记录或草稿记录。
+2. 用户也可在 `/records/:id` 删除单条正式记录，或在 `/intake/:id` 删除当前草稿记录。
+3. 删除正式记录时：
+   - `health_events.status` 更新为 `deleted`
+   - `health_events.deletedAt` 写入删除时间
+   - 若该记录有关联 intake session，则该 session 状态更新为 `deleted`
+4. 删除草稿记录时：
+   - 删除 `intake_sessions`
+   - 删除关联的 `intake_messages`
+   - 删除关联的 `intake_session_attachments`
+   - 删除暂存附件文件
+5. 删除后：
+   - 正式记录不再出现在列表、详情、继续补充入口和报告输入中
+   - 草稿记录不再出现在草稿 tab，也不能通过原 `/intake/:id` 恢复
 
 ## 异常流程
 
@@ -110,6 +130,7 @@
 - `/ai/intake` 或 `/ai/extract` 返回缺字段、错类型或结构非法：视为 `invalidResponsePayload`，不落正式记录。
 - `/ai/intake` 返回内容质量一般、摘要很短或为空字符串：只要字段存在且类型正确，仍视为合法响应，原样保留。
 - 网络失败、上游 HTTP 失败、数据库写入失败或附件转正失败：当前操作失败，页面提示错误，不把未完成草稿写进正式记录。
+- 删除正式记录失败或删除草稿失败：当前删除操作失败，列表与详情保持原状态。
 - 首次弹窗未勾选同意项：用户不能关闭弹窗，也不能继续操作首页入口。
 - 详情页打开的是旧 `/ai/extract` 记录：不显示重新追问入口。
 
@@ -124,8 +145,10 @@
 | intake session | `questioning` | 返回最终完成 | `finalized` | 首轮 direct-final 也保留 session |
 | intake session | `awaiting_user_input` | 用户继续补充并请求 | `questioning` | 进入下一轮处理中 |
 | intake session | `awaiting_user_input` | 强制结束完成 | `finalized_by_force` | 由 `forceFinalize=true` 触发 |
+| intake session | `questioning/awaiting_user_input/finalized/finalized_by_force` | 关联正式记录被删除 | `deleted` | 仅用于屏蔽已关联 session |
 | 正式记录 | 不存在 | 首次完成 | 已创建 | `createdAt = updatedAt = eventTime` |
 | 正式记录 | 已存在 | 重新追问完成 | 已更新 | 保留原 `createdAt`，刷新 `updatedAt` |
+| 正式记录 | `active` | 用户删除 | `deleted` | 写入 `deletedAt`，不物理删除数据库行 |
 
 ## 前置条件
 
@@ -135,6 +158,6 @@
 
 ## 后置条件
 
-- 未完成追问只存在于 `intake_sessions`、`intake_messages`、`intake_session_attachments`。
+- 未完成追问在未删除时只存在于 `intake_sessions`、`intake_messages`、`intake_session_attachments`。
 - 正式记录完成后，`health_events` 与 `attachments` 中存在对应落库结果。
 - 报告生成后，`reports` 中存在对应范围的正式报告。

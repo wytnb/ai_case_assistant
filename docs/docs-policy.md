@@ -146,7 +146,7 @@
   - 更新时机：校验规则、降级规则、范围计算规则变化
 
 - `docs/09-env-and-runbook.md`
-  - 用途：环境要求、dart-define、启动、验证、排障
+  - 用途：环境要求、dart-define、启动、验证入口与排障总览
   - 更新时机：环境变量、启动方式、验证命令变化
 
 - `docs/10-testing-strategy.md`
@@ -164,6 +164,10 @@
 - `docs/13-requirement-deltas.md`
   - 用途：记录需求理解、范围边界、文档体系的重要变化
   - 更新时机：范围变化、重要取舍变化、文档体系迁移
+
+- `docs/14-android-real-device-testing-sop.md`
+  - 用途：Android 真机连接、安装、运行、日志抓取与排障 SOP
+  - 更新时机：真机 smoke 操作步骤、设备排障方式、安装与运行流程变化
 
 - `docs/adr/*.md`
   - 用途：记录重要架构决策及再评估条件
@@ -194,7 +198,8 @@
 | AI 请求 / 响应变化 | `docs/06-api-contracts.md`, `docs/08-rules-and-edge-cases.md`, `docs/10-testing-strategy.md` |
 | 表结构 / 迁移 / 文件路径变化 | `docs/07-data-model.md`, `docs/10-testing-strategy.md` |
 | 模块边界 / 依赖方向变化 | `docs/05-system-architecture.md`, `docs/11-regression-matrix.md`, `docs/adr/*.md` |
-| 环境变量 / 运行方式 / 验证命令变化 | `README.md`, `docs/09-env-and-runbook.md`, `docs/12-release-smoke-checklist.md` |
+| 环境变量 / 运行方式 / 验证命令变化 | `README.md`, `docs/09-env-and-runbook.md`, `docs/12-release-smoke-checklist.md`, `docs/14-android-real-device-testing-sop.md` |
+| Android 真机连接 / 安装 / 运行 / 排障流程变化 | `README.md`, `docs/09-env-and-runbook.md`, `docs/12-release-smoke-checklist.md`, `docs/14-android-real-device-testing-sop.md` |
 | 测试口径变化 | `docs/10-testing-strategy.md`, `docs/11-regression-matrix.md`, `docs/12-release-smoke-checklist.md` |
 | 发布与演示流程变化 | `docs/12-release-smoke-checklist.md`, `docs/13-requirement-deltas.md` |
 | AI 协作或文档同步规则变化 | `AGENTS.md`, `docs/docs-policy.md`, `.cursor/rules/*`, `scripts/check_doc_sync.py` |
@@ -379,7 +384,23 @@
 - 后续动作：
 ```
 
-### 6.14 ADR 模板（docs/adr/*.md）
+### 6.14 Android 真机测试 SOP 模板（14-android-real-device-testing-sop.md）
+
+```md
+# Android 真机测试操作手册
+
+## 目标与适用范围
+## 当前已确认的仓库事实
+## 前置检查
+## 设备连接
+## 运行方式
+## 仓库专属真机 smoke 流程
+## 日志与排障
+## 跳过与汇报要求
+## 相关文档
+```
+
+### 6.15 ADR 模板（docs/adr/*.md）
 
 ```md
 # ADR-XXXX-标题

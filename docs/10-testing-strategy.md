@@ -14,10 +14,11 @@
 | `test/widget_test.dart` | 首页主入口与追问模式开关存在 |
 | `test/app/presentation/home_page_test.dart` | 首页首次免责弹窗、同意放行、追问模式开关持久化 |
 | `test/features/health_record/presentation/create_health_record_page_test.dart` | 新增记录页提交、路由与错误边界 |
-| `test/features/health_record/presentation/health_record_list_page_test.dart` | 未完成追问区与正式记录区展示 |
-| `test/features/health_record/presentation/health_record_detail_page_test.dart` | `actionAdvice`、空状态与重开入口 |
-| `test/features/report/presentation/report_detail_page_test.dart` | 报告详情页末尾免责说明 |
-| `test/features/intake/presentation/intake_page_test.dart` | 继续追问、强制结束、恢复 `questioning` |
+| `test/features/health_record/presentation/health_record_list_page_test.dart` | 双 tab、原始文本标题、日期范围筛选、删除后列表更新 |
+| `integration_test/health_record_list_page_test.dart` | Android 设备执行列表页筛选状态更新、草稿菜单删除与留在列表页 |
+| `test/features/health_record/presentation/health_record_detail_page_test.dart` | `actionAdvice`、空状态、删除入口与“追加补充”按钮 |
+| `test/features/report/presentation/report_detail_page_test.dart` | 报告详情页末尾免责说明与已删来源红字提示 |
+| `test/features/intake/presentation/intake_page_test.dart` | 继续追问、强制结束、恢复 `questioning`、文案更新 |
 | `test/features/intake/intake_service_test.dart` | 设置、会话、正式记录更新、报告隔离、附件转正 |
 | `test/features/ai/data/remote_ai_services_test.dart` | `/ai/intake`、`/ai/extract`、`/ai/report` 契约解析 |
 | `test/core/database/app_database_test.dart` | 数据库与迁移基础覆盖 |
@@ -77,6 +78,8 @@
 
 ### 第三层：Android 真机 smoke
 
+Android 真机 smoke 的连接、安装、运行、日志与排障步骤统一见 [docs/14-android-real-device-testing-sop.md](docs/14-android-real-device-testing-sop.md)。本节只定义触发条件与必测项。
+
 只有以下情况必须上真机：
 
 - 图片选择、附件相关逻辑变化
@@ -95,6 +98,7 @@
 - 详情页图片预览、点击全屏预览正常
 - 重启 App 后数据与附件仍可读取
 - 若真实 AI 依赖 Clash 或其他代理，保留代理条件下验证链路
+- 若本次修改触及 `/records` 的筛选或删除交互，补跑 `integration_test/health_record_list_page_test.dart`
 
 ### 第四层：Web Chrome 备用 smoke
 
@@ -186,6 +190,8 @@ fvm flutter test test/features/ai/real_ai_api_test.dart --dart-define=RUN_REAL_A
 - `symptomSummary` 的“字符串即保留”规则不能回退
 - 强制结束与重新追问不能产生重复正式记录
 - 未完成追问不能进入正式记录列表或报告
+- 正式记录软删除后不能继续参与列表、详情、报告输入或继续补充入口
+- 草稿硬删除后不能残留 session / message / intake attachment 行
 - 首次免责同意必须在未同意前强阻断首页入口
 - 附件转正失败不能把草稿误写进正式记录
 - 图片附件相关变更必须通过真机验证

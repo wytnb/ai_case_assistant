@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets(
-    'shows action advice and re-open entry for linked intake session',
+    'shows action advice, delete entry, and append entry for linked intake session',
     (WidgetTester tester) async {
       final AppDatabase database = AppDatabase(NativeDatabase.memory());
       addTearDown(database.close);
@@ -62,6 +62,9 @@ void main() {
       expect(find.text('summary text'), findsOneWidget);
       expect(find.text('continue observing temperature'), findsOneWidget);
       expect(find.byType(FilledButton), findsOneWidget);
+      expect(find.text('追加补充'), findsOneWidget);
+      expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+      expect(find.text('来源类型'), findsNothing);
     },
   );
 

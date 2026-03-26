@@ -25,9 +25,24 @@ class HealthRecordDetailPage extends ConsumerWidget {
     );
     final AsyncValue<Map<String, IntakeSession>> linkedSessionsAsync = ref
         .watch(linkedIntakeSessionsProvider);
+    final AsyncValue<void> deleteState = ref.watch(
+      deleteHealthRecordControllerProvider,
+    );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('记录详情')),
+      appBar: AppBar(
+        title: const Text('记录详情'),
+        actions: <Widget>[
+          if (healthRecordAsync.valueOrNull != null)
+            IconButton(
+              onPressed: deleteState.isLoading
+                  ? null
+                  : () => _deleteHealthRecord(context, ref),
+              icon: const Icon(Icons.delete_outline),
+              tooltip: '删除正式记录',
+            ),
+        ],
+      ),
       body: healthRecordAsync.when(
         data: (HealthEvent? healthRecord) {
           if (healthRecord == null) {
@@ -43,10 +58,6 @@ class HealthRecordDetailPage extends ConsumerWidget {
               _DetailSection(
                 title: '事件时间',
                 child: Text(_dateFormatter.format(healthRecord.createdAt)),
-              ),
-              _DetailSection(
-                title: '来源类型',
-                child: Text(healthRecord.sourceType),
               ),
               _DetailSection(
                 title: '原始文本',
@@ -113,7 +124,7 @@ class HealthRecordDetailPage extends ConsumerWidget {
                     child: FilledButton.tonal(
                       onPressed: () =>
                           context.push('/intake/${linkedSession.id}'),
-                      child: const Text('继续补充并重新追问'),
+                      child: const Text('追加补充'),
                     ),
                   );
                 },
@@ -136,6 +147,51 @@ class HealthRecordDetailPage extends ConsumerWidget {
     }
 
     return normalized;
+  }
+
+  Future<void> _deleteHealthRecord(BuildContext context, WidgetRef ref) async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('删除正式记录'),
+          content: const Text('删除后，这条正式记录将不再出现在列表和报告输入中。'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('确认删除'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    try {
+      await ref
+          .read(deleteHealthRecordControllerProvider.notifier)
+          .deleteHealthRecord(healthRecordId);
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('正式记录已删除。')));
+      context.go('/records');
+    } catch (_) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('删除失败，请稍后重试。')));
+    }
   }
 }
 

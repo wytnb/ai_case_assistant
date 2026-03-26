@@ -20,6 +20,9 @@ class ReportDetailPage extends ConsumerWidget {
     final AsyncValue<Report?> reportAsync = ref.watch(
       reportDetailProvider(reportId),
     );
+    final AsyncValue<bool> deletedSourceHintAsync = ref.watch(
+      reportHasDeletedSourceRecordsProvider(reportId),
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('报告详情')),
@@ -47,6 +50,8 @@ class ReportDetailPage extends ConsumerWidget {
                   '${_dayFormatter.format(report.rangeStart)} ~ ${_dayFormatter.format(report.rangeEnd)}',
                 ),
               ),
+              if (deletedSourceHintAsync.valueOrNull == true)
+                _DeletedSourceWarning(),
               _DetailSection(title: '摘要', child: Text(report.summary)),
               _DetailSection(
                 title: '建议',
@@ -105,6 +110,27 @@ class ReportDetailPage extends ConsumerWidget {
       default:
         return reportType;
     }
+  }
+}
+
+class _DeletedSourceWarning extends StatelessWidget {
+  const _DeletedSourceWarning();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          '部分记录来源已被删除',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: Theme.of(context).colorScheme.error,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
   }
 }
 
