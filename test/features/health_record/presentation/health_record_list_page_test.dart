@@ -1,7 +1,10 @@
 import 'package:ai_case_assistant/core/database/app_database.dart';
 import 'package:ai_case_assistant/core/database/app_database_provider.dart';
+import 'package:ai_case_assistant/features/health_record/data/local/health_record_attachment_storage.dart';
 import 'package:ai_case_assistant/features/health_record/presentation/pages/health_record_list_page.dart';
 import 'package:ai_case_assistant/features/health_record/presentation/providers/health_record_providers.dart';
+import 'package:ai_case_assistant/features/intake/data/local/intake_attachment_storage.dart';
+import 'package:ai_case_assistant/features/intake/domain/services/ai_intake_service.dart';
 import 'package:ai_case_assistant/features/intake/presentation/providers/intake_providers.dart';
 import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
@@ -271,4 +274,123 @@ void main() {
     );
     expect(find.text('还没有健康记录'), findsOneWidget);
   });
+
+  testWidgets(
+    'overflow delete on draft card stays successful after async service gap',
+    (WidgetTester tester) async {
+      final AppDatabase database = AppDatabase(NativeDatabase.memory());
+      addTearDown(database.close);
+      await database.insertIntakeSession(
+        IntakeSessionsCompanion.insert(
+          id: 'draft-delayed',
+          healthEventId: const Value<String?>.absent(),
+          eventTime: DateTime.parse('2026-03-15T11:00:00.000'),
+          followUpModeSnapshot: true,
+          status: 'awaiting_user_input',
+          initialRawText: '用于异步删除回归的草稿',
+          mergedRawText: const Value<String?>('用于异步删除回归的草稿'),
+          latestQuestion: const Value<String?>('请补充持续时间'),
+          draftSymptomSummary: const Value<String?>('摘要'),
+          draftNotes: const Value<String?>(''),
+          draftActionAdvice: const Value<String?>(''),
+          createdAt: DateTime.parse('2026-03-15T11:00:00.000'),
+          updatedAt: DateTime.parse('2026-03-15T11:30:00.000'),
+        ),
+      );
+      await database.insertIntakeMessage(
+        IntakeMessagesCompanion.insert(
+          id: 'draft-delayed-message',
+          sessionId: 'draft-delayed',
+          seq: 1,
+          role: 'user',
+          content: '用于异步删除回归的草稿',
+          createdAt: DateTime.parse('2026-03-15T11:00:00.000'),
+        ),
+      );
+
+      final GoRouter router = GoRouter(
+        initialLocation: '/records',
+        routes: <RouteBase>[
+          GoRoute(
+            path: '/records',
+            builder: (_, _) => const HealthRecordListPage(),
+          ),
+          GoRoute(
+            path: '/records/:id',
+            builder: (_, GoRouterState state) => Scaffold(
+              body: Center(child: Text('record-${state.pathParameters['id']}')),
+            ),
+          ),
+          GoRoute(
+            path: '/intake/:id',
+            builder: (_, GoRouterState state) => Scaffold(
+              body: Center(child: Text('intake-${state.pathParameters['id']}')),
+            ),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: <Override>[
+            appDatabaseProvider.overrideWithValue(database),
+            intakeServiceProvider.overrideWithValue(
+              _DelayedDeleteIntakeService(database: database),
+            ),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('草稿记录'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('删除').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('确认删除'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 20));
+      await tester.pumpAndSettle();
+
+      expect(await database.getIntakeSessionById('draft-delayed'), isNull);
+      expect(find.text('草稿记录已删除。'), findsOneWidget);
+      expect(find.text('删除失败，请稍后重试。'), findsNothing);
+      expect(
+        router.routerDelegate.currentConfiguration.uri.toString(),
+        '/records',
+      );
+      expect(find.text('还没有健康记录'), findsOneWidget);
+    },
+  );
+}
+
+class _DelayedDeleteIntakeService extends IntakeService {
+  _DelayedDeleteIntakeService({required super.database})
+    : super(
+        aiIntakeService: _NoopAiIntakeService(),
+        intakeAttachmentStorage: const IntakeAttachmentStorage(),
+        healthRecordAttachmentStorage: const HealthRecordAttachmentStorage(),
+      );
+
+  @override
+  Future<void> hardDeleteDraftSession(String sessionId) async {
+    await super.hardDeleteDraftSession(sessionId);
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+}
+
+class _NoopAiIntakeService implements AiIntakeService {
+  @override
+  Future<IntakeResponse> submitIntake({
+    required bool followUpMode,
+    required bool forceFinalize,
+    required DateTime eventTime,
+    required List<IntakeRequestMessage> messages,
+  }) {
+    throw UnimplementedError();
+  }
 }

@@ -38,13 +38,13 @@ fvm flutter devices
 说明：
 
 - 纯文档任务或未触及 Drift schema 的任务，不必每次都执行 `build_runner build`。
-- 多设备同时在线时，后续命令统一显式带 `-d <device-id>`，避免误装到错误设备。
+- Android 包 ADB 直装前，必须先把在线设备收敛到只剩一台目标真机，避免误装到错误设备。
 
 ## 设备连接
 
 1. 在 Android 真机上开启开发者选项与 USB 调试。
 2. 用数据线连接主机，并在手机上确认“允许 USB 调试 / 信任此电脑”。
-3. 执行 `adb devices`，确认设备状态为 `device`，而不是 `unauthorized` 或 `offline`。
+3. 执行 `adb devices`，确认当前只有一台目标真机，且状态为 `device`，而不是 `unauthorized` 或 `offline`。
 4. 执行 `fvm flutter devices`，记录 Flutter 识别到的 `<device-id>`。
 5. 如果 `adb devices` 可见但 `fvm flutter devices` 不可见，先执行一次 `fvm flutter doctor -v` 排查 Android toolchain。
 
@@ -61,6 +61,7 @@ fvm flutter devices
 - 手机上是否点过授权弹窗。
 - 数据线是否支持数据传输。
 - Android Studio / SDK / platform-tools 是否可用。
+- 是否还有其他在线真机或模拟器未断开。
 
 如需重置 ADB 连接，可执行：
 
@@ -94,26 +95,55 @@ fvm flutter run -d <device-id> --dart-define=USE_MOCK_AI_EXTRACT=true
 
 ### 安装包验证
 
-当目标是确认安装包可以被真机安装、覆盖安装和启动时，使用 APK 构建 + ADB 安装：
+当目标是确认安装包可以被真机安装、覆盖安装和启动时，统一使用“主机侧 APK 构建 + ADB 直装”。不要通过手机下载 APK 后手动点击安装，也不要把手机上的“继续安装”页面当成标准流程。
 
 ```bash
 fvm flutter build apk --debug
-adb install -r build/app/outputs/flutter-apk/app-debug.apk
+```
+
+安装前先执行：
+
+```bash
+adb devices
+```
+
+要求：
+
+- 继续安装前，`adb devices` 中必须只有一台目标真机，且状态为 `device`。
+- 若存在第二台真机、模拟器、`offline` 或 `unauthorized` 设备，先清理到只剩目标设备，再继续。
+- 如果当前任务是候选发布包验证，应改用该任务实际需要的构建命令和产物，再沿用同样的 ADB 直装步骤。
+
+推荐 PowerShell 流程：
+
+```powershell
+$apkPath = "build/app/outputs/flutter-apk/app-debug.apk"
+$installOutput = & adb install -r -t -g $apkPath 2>&1
+$installExitCode = $LASTEXITCODE
+$installOutput | Write-Output
+
+if ($installExitCode -ne 0) {
+  throw "ADB install failed. See output above."
+}
+
+& adb shell am start -n com.example.ai_case_assistant/.MainActivity
 ```
 
 说明：
 
 - `-r` 表示覆盖安装已有同包名应用。
-- 安装软件时，系统会弹出安装提示框，Codex 需要点击“继续安装”按钮。
-- 如果当前任务是候选发布包验证，应改用该任务实际需要的构建命令和产物，再沿用同样的 ADB 安装步骤。
+- `-t` 允许安装测试包。
+- `-g` 在安装时授予运行时权限，避免把手机端确认页当成部署步骤的一部分。
+- 安装成功后应立即自动启动 `com.example.ai_case_assistant/.MainActivity`。
+- 安装失败时必须原样输出完整 ADB 错误信息，不要只保留摘要。
 
 ### 可选清理重装
 
 如果怀疑旧安装状态、权限状态或本地数据污染了验证结果，可先卸载再重装：
 
-```bash
+```powershell
 adb uninstall com.example.ai_case_assistant
-adb install -r build/app/outputs/flutter-apk/app-debug.apk
+adb install -r -t -g build/app/outputs/flutter-apk/app-debug.apk
+adb shell am start -n com.example.ai_case_assistant/.MainActivity
 ```
 
 ## 仓库专属真机 smoke 流程
@@ -134,6 +164,7 @@ adb install -r build/app/outputs/flutter-apk/app-debug.apk
 - 纯文本主链路、关键页面基础打开、导航回归优先走模拟器，不因本文存在而放大真机范围。
 - Web Chrome 只允许在“需要补一个真实 AI 文本主链路验证，且真机在保留代理的前提下仍不可行”时作为备用方案。
 - Web Chrome 不能替代 Android 安装、权限、相册、附件、本地文件或设备网络行为验证。
+- Android 包安装默认必须走主机侧 ADB 直装，不再通过手机下载 APK 后手动安装。
 
 ## 日志与排障
 
@@ -154,8 +185,10 @@ adb shell pm list packages com.example.ai_case_assistant
   - 若 ADB 状态为 `unauthorized`，回到手机重新确认授权弹窗。
   - 若状态为 `offline`，重插数据线并重启 ADB。
 - 安装失败或覆盖安装异常
+  - 先确认 `adb devices` 中只有一台目标真机且状态为 `device`。
   - 先确认包名仍为 `com.example.ai_case_assistant`。
-  - 必要时执行 `adb uninstall com.example.ai_case_assistant` 后重装。
+  - 保留完整 `adb install` 原始输出，不要只记录摘要。
+  - 必要时执行 `adb uninstall com.example.ai_case_assistant` 后按 ADB 直装流程重装。
 - App 能装但真实 AI 不通
   - 先确认代理仍开启，不要先做“关闭代理”的排障。
   - 检查 `AI_API_BASE_URL` 是否正确、网络是否可达。

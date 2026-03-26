@@ -61,6 +61,21 @@ fvm flutter test test/features/ai/real_ai_api_test.dart --dart-define=RUN_REAL_A
 python scripts/check_doc_sync.py --working-tree --no-strict
 ```
 
+Android APK ADB 直装摘要：
+
+```bash
+adb devices
+adb install -r -t -g <APK路径>
+adb shell am start -n com.example.ai_case_assistant/.MainActivity
+```
+
+说明：
+
+- Android 包部署默认使用主机侧 ADB 直装，不再通过手机下载 APK 后手动安装。
+- 安装前先确认 `adb devices` 中只有一台目标真机，且状态为 `device`。
+- 安装成功后应自动启动应用；若安装失败，必须保留并汇报完整 ADB 输出。
+- 不要依赖手机上的“继续安装”页面；详细 PowerShell 流程见 [docs/14-android-real-device-testing-sop.md](docs/14-android-real-device-testing-sop.md)。
+
 ## 验证分层入口
 
 Android 真机的连接、安装、运行、日志与排障统一见 [docs/14-android-real-device-testing-sop.md](docs/14-android-real-device-testing-sop.md)。本节只保留验证分层入口与触发边界。
@@ -114,7 +129,7 @@ Android 真机的连接、安装、运行、日志与排障统一见 [docs/14-an
 
 执行摘要：
 
-1. 先按 [docs/14-android-real-device-testing-sop.md](docs/14-android-real-device-testing-sop.md) 完成设备连接、安装 / 运行与日志准备。
+1. 先按 [docs/14-android-real-device-testing-sop.md](docs/14-android-real-device-testing-sop.md) 完成设备连接、ADB 直装 / 运行与日志准备。
 2. 再按本节触发条件和 [docs/12-release-smoke-checklist.md](docs/12-release-smoke-checklist.md) 完成相册、权限、附件、预览、重启回显与真实 AI 链路验证。
 3. 只有真机在保留代理的前提下仍无法打通真实 AI 文本链路时，才评估 Web Chrome 备用 smoke。
 
@@ -149,7 +164,7 @@ Android 真机的连接、安装、运行、日志与排障统一见 [docs/14-an
 3. 固定执行 `fvm flutter test`
 4. 如触及 `/ai/intake`、`/ai/extract`、`features/ai/`、`core/network/`、`core/config/` 或环境变量，评估并尽量执行真实 AI 测试
 5. 如只是纯文本主链路、关键页面或导航变化，优先执行 Android 模拟器 smoke
-6. 如涉及相册、附件、本地文件、安装、权限或代理网络，必须执行 Android 真机 smoke，操作步骤统一按 [docs/14-android-real-device-testing-sop.md](docs/14-android-real-device-testing-sop.md)
+6. 如涉及相册、附件、本地文件、安装、权限或代理网络，必须执行 Android 真机 smoke，Android 包安装统一按 ADB 直装执行，操作步骤见 [docs/14-android-real-device-testing-sop.md](docs/14-android-real-device-testing-sop.md)
 7. 只有真机在保留代理的前提下仍无法打通真实 AI 文本链路时，才追加 Web Chrome smoke，并明确它不能替代 Android 验证
 
 ## 当前平台与标识事实

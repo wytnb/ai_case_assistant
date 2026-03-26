@@ -156,6 +156,12 @@ class _HealthRecordListPageState extends ConsumerState<HealthRecordListPage> {
       unfinishedIntakeSessionsProvider,
     );
     final DateTimeRange? dateRange = ref.watch(recordEventTimeFilterProvider);
+    final AsyncValue<void> deleteHealthRecordState = ref.watch(
+      deleteHealthRecordControllerProvider,
+    );
+    final AsyncValue<void> deleteDraftSessionState = ref.watch(
+      deleteDraftSessionControllerProvider,
+    );
 
     return DefaultTabController(
       length: 2,
@@ -181,6 +187,9 @@ class _HealthRecordListPageState extends ConsumerState<HealthRecordListPage> {
                   ref.read(recordEventTimeFilterProvider.notifier).state = null,
               onDeleteHealthRecord: _deleteHealthRecord,
               onDeleteDraftSession: _deleteDraftSession,
+              isDeleteActionEnabled:
+                  !deleteHealthRecordState.isLoading &&
+                  !deleteDraftSessionState.isLoading,
             ),
           (AsyncError<List<HealthEvent>> _, _) ||
           (_, AsyncError<List<IntakeSession>> _) => Center(
@@ -219,6 +228,7 @@ class _LoadedListBody extends ConsumerWidget {
     required this.onClearDateRange,
     required this.onDeleteHealthRecord,
     required this.onDeleteDraftSession,
+    required this.isDeleteActionEnabled,
   });
 
   final List<HealthEvent> healthRecords;
@@ -229,6 +239,7 @@ class _LoadedListBody extends ConsumerWidget {
   final VoidCallback onClearDateRange;
   final Future<void> Function(String healthEventId) onDeleteHealthRecord;
   final Future<void> Function(String sessionId) onDeleteDraftSession;
+  final bool isDeleteActionEnabled;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -282,10 +293,12 @@ class _LoadedListBody extends ConsumerWidget {
                 _RecordTab(
                   healthRecords: healthRecords,
                   onDeleteHealthRecord: onDeleteHealthRecord,
+                  isDeleteActionEnabled: isDeleteActionEnabled,
                 ),
                 _DraftTab(
                   sessions: unfinishedSessions,
                   onDeleteDraftSession: onDeleteDraftSession,
+                  isDeleteActionEnabled: isDeleteActionEnabled,
                 ),
               ],
             ),
@@ -338,10 +351,12 @@ class _RecordTab extends StatelessWidget {
   const _RecordTab({
     required this.healthRecords,
     required this.onDeleteHealthRecord,
+    required this.isDeleteActionEnabled,
   });
 
   final List<HealthEvent> healthRecords;
   final Future<void> Function(String healthEventId) onDeleteHealthRecord;
+  final bool isDeleteActionEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -362,6 +377,7 @@ class _RecordTab extends StatelessWidget {
           ),
           onTap: () => context.push('/records/${healthRecord.id}'),
           onDelete: () => onDeleteHealthRecord(healthRecord.id),
+          canDelete: isDeleteActionEnabled,
         );
       },
     );
@@ -369,10 +385,15 @@ class _RecordTab extends StatelessWidget {
 }
 
 class _DraftTab extends StatelessWidget {
-  const _DraftTab({required this.sessions, required this.onDeleteDraftSession});
+  const _DraftTab({
+    required this.sessions,
+    required this.onDeleteDraftSession,
+    required this.isDeleteActionEnabled,
+  });
 
   final List<IntakeSession> sessions;
   final Future<void> Function(String sessionId) onDeleteDraftSession;
+  final bool isDeleteActionEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -393,6 +414,7 @@ class _DraftTab extends StatelessWidget {
           trailingText: '继续追问',
           onTap: () => context.push('/intake/${session.id}'),
           onDelete: () => onDeleteDraftSession(session.id),
+          canDelete: isDeleteActionEnabled,
         );
       },
     );
@@ -418,6 +440,7 @@ class _RecordPanel extends StatelessWidget {
     required this.timeText,
     required this.onTap,
     required this.onDelete,
+    required this.canDelete,
     this.statusText,
     this.trailingText,
   });
@@ -428,6 +451,7 @@ class _RecordPanel extends StatelessWidget {
   final String? trailingText;
   final VoidCallback onTap;
   final VoidCallback onDelete;
+  final bool canDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -482,6 +506,7 @@ class _RecordPanel extends StatelessWidget {
             ),
             PopupMenuButton<String>(
               tooltip: '更多操作',
+              enabled: canDelete,
               onSelected: (String value) {
                 if (value == 'delete') {
                   onDelete();
