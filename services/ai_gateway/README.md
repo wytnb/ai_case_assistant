@@ -11,6 +11,7 @@
 ## 当前能力
 
 - 当前公开业务端点只有 `POST /ai/intake` 与 `POST /ai/report`
+- 当前默认公开 `workers.dev` 地址为 `https://case-assistant-gateway.wytai.workers.dev`
 - 共享 HTTP 契约以根级 [contracts/health-record-ai.openapi.json](../../contracts/health-record-ai.openapi.json) 为准
 - Worker 实现细节、错误结构、时间锚点和兼容性要求见 [docs/06-api-contracts.md](./docs/06-api-contracts.md)
 - 业务流程、领域对象、规则边界分别见 [docs/03-business-flows.md](./docs/03-business-flows.md)、[docs/04-domain-model.md](./docs/04-domain-model.md)、[docs/08-rules-and-edge-cases.md](./docs/08-rules-and-edge-cases.md)

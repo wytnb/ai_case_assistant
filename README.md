@@ -93,7 +93,7 @@ fvm flutter test
 
 ```bash
 cd apps/ai_case_assistant
-fvm flutter test test/features/ai/real_ai_api_test.dart --dart-define=RUN_REAL_AI_API_TESTS=true --dart-define=AI_API_BASE_URL=https://ai-api-worker.wytai.workers.dev
+fvm flutter test test/features/ai/real_ai_api_test.dart --dart-define=RUN_REAL_AI_API_TESTS=true --dart-define=AI_API_BASE_URL=https://case-assistant-gateway.wytai.workers.dev
 ```
 
 ### Gateway 校验

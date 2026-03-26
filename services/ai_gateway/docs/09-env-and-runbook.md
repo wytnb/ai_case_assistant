@@ -16,6 +16,8 @@
 | live 测试 | 运行 `npm run test:live` | 需要真实 `DEEPSEEK_API_KEY` |
 | 部署到 Cloudflare | 运行 `npm run deploy` | 触发强制闭环时为必做步骤 |
 
+当前默认公开 `workers.dev` 地址：`https://case-assistant-gateway.wytai.workers.dev`
+
 ## 配置项
 
 | 配置项 | 必填 | 说明 |

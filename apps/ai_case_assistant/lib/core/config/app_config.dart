@@ -3,6 +3,6 @@ class AppConfig {
 
   static const String aiApiBaseUrl = String.fromEnvironment(
     'AI_API_BASE_URL',
-    defaultValue: 'https://ai-api-worker.wytai.workers.dev',
+    defaultValue: 'https://case-assistant-gateway.wytai.workers.dev',
   );
 }

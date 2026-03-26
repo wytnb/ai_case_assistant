@@ -55,7 +55,7 @@ fvm flutter run -d <device-id>
 
 ```bash
 cd apps/ai_case_assistant
-fvm flutter run -d <device-id> --dart-define=AI_API_BASE_URL=https://ai-api-worker.wytai.workers.dev
+fvm flutter run -d <device-id> --dart-define=AI_API_BASE_URL=https://case-assistant-gateway.wytai.workers.dev
 ```
 
 ### 构建 APK

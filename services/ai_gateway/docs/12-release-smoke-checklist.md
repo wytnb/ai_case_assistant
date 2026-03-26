@@ -19,7 +19,7 @@
 ### `/ai/intake` 预检
 
 ```bash
-curl -i -X OPTIONS "https://ai-api-worker.wytai.workers.dev/ai/intake"
+curl -i -X OPTIONS "https://case-assistant-gateway.wytai.workers.dev/ai/intake"
 ```
 
 断言：
@@ -30,7 +30,7 @@ curl -i -X OPTIONS "https://ai-api-worker.wytai.workers.dev/ai/intake"
 ### `/ai/intake` happy path
 
 ```bash
-curl -i -X POST "https://ai-api-worker.wytai.workers.dev/ai/intake" \
+curl -i -X POST "https://case-assistant-gateway.wytai.workers.dev/ai/intake" \
   -H "Content-Type: application/json" \
   -d "{\"followUpMode\":true,\"forceFinalize\":true,\"eventTime\":\"2026-03-18T18:00:00+08:00\",\"messages\":[{\"role\":\"user\",\"content\":\"最近三天心脏不舒服。\"}]}"
 ```
@@ -46,7 +46,7 @@ curl -i -X POST "https://ai-api-worker.wytai.workers.dev/ai/intake" \
 ### `/ai/intake` follow-up
 
 ```bash
-curl -i -X POST "https://ai-api-worker.wytai.workers.dev/ai/intake" \
+curl -i -X POST "https://case-assistant-gateway.wytai.workers.dev/ai/intake" \
   -H "Content-Type: application/json" \
   -d "{\"followUpMode\":true,\"forceFinalize\":false,\"eventTime\":\"2026-03-18T18:00:00+08:00\",\"messages\":[{\"role\":\"user\",\"content\":\"不太舒服。\"}]}"
 ```
@@ -60,7 +60,7 @@ curl -i -X POST "https://ai-api-worker.wytai.workers.dev/ai/intake" \
 ### `/ai/report`
 
 ```bash
-curl -i -X POST "https://ai-api-worker.wytai.workers.dev/ai/report" \
+curl -i -X POST "https://case-assistant-gateway.wytai.workers.dev/ai/report" \
   -H "Content-Type: application/json" \
   -d "{\"reportType\":\"week\",\"rangeStart\":\"2026-03-01\",\"rangeEnd\":\"2026-03-07\",\"events\":[{\"eventTime\":\"2026-03-02T18:30:00+08:00\",\"rawText\":\"轻微头痛，休息后缓解。\",\"symptomSummary\":\"头痛（2026-03-02）\",\"notes\":null}]}"
 ```
@@ -75,7 +75,7 @@ curl -i -X POST "https://ai-api-worker.wytai.workers.dev/ai/report" \
 ### retired `/ai/extract`
 
 ```bash
-curl -i -X POST "https://ai-api-worker.wytai.workers.dev/ai/extract" \
+curl -i -X POST "https://case-assistant-gateway.wytai.workers.dev/ai/extract" \
   -H "Content-Type: application/json" \
   -d "{\"rawText\":\"最近三天心脏不舒服。\",\"eventTime\":\"2026-03-18T18:00:00+08:00\"}"
 ```
@@ -130,5 +130,5 @@ curl -i -X POST "https://ai-api-worker.wytai.workers.dev/ai/extract" \
 可直接使用以下命令：
 
 ```bash
-node -e "(async()=>{const base='https://ai-api-worker.wytai.workers.dev'; const opts=await fetch(base+'/ai/intake',{method:'OPTIONS'}); const intakeHappyBody={followUpMode:true,forceFinalize:true,eventTime:'2026-03-18T18:00:00+08:00',messages:[{role:'user',content:'\u6700\u8fd1\u4e09\u5929\u5fc3\u810f\u4e0d\u8212\u670d\u3002'}]}; const intakeHappyResp=await fetch(base+'/ai/intake',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(intakeHappyBody)}); const intakeHappy=await intakeHappyResp.json(); const intakeFollowBody={followUpMode:true,forceFinalize:false,eventTime:'2026-03-18T18:00:00+08:00',messages:[{role:'user',content:'\u4e0d\u592a\u8212\u670d\u3002'}]}; const intakeFollowResp=await fetch(base+'/ai/intake',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(intakeFollowBody)}); const intakeFollow=await intakeFollowResp.json(); const reportBody={reportType:'week',rangeStart:'2026-03-01',rangeEnd:'2026-03-07',events:[{eventTime:'2026-03-02T18:30:00+08:00',rawText:'\u8f7b\u5fae\u5934\u75db\uff0c\u4f11\u606f\u540e\u7f13\u89e3\u3002',symptomSummary:'\u5934\u75db\uff082026-03-02\uff09',notes:null}]}; const reportResp=await fetch(base+'/ai/report',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(reportBody)}); const report=await reportResp.json(); const extractResp=await fetch(base+'/ai/extract',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rawText:'\u6700\u8fd1\u4e09\u5929\u5fc3\u810f\u4e0d\u8212\u670d\u3002',eventTime:'2026-03-18T18:00:00+08:00'})}); const extractText=await extractResp.text(); console.log(JSON.stringify({options:{status:opts.status,allowOrigin:opts.headers.get('access-control-allow-origin'),allowMethods:opts.headers.get('access-control-allow-methods')},intakeHappy:{status:intakeHappyResp.status,intakeStatus:intakeHappy.status,mergedRawText:intakeHappy?.draft?.mergedRawText,symptomSummary:intakeHappy?.draft?.symptomSummary},intakeFollow:{status:intakeFollowResp.status,intakeStatus:intakeFollow.status,questionLength:(intakeFollow.question||'').trim().length},report:{status:reportResp.status,hasTitle:!!report.title,adviceCount:Array.isArray(report.advice)?report.advice.length:0,firstAdviceLength:Array.isArray(report.advice)&&report.advice[0]?report.advice[0].trim().length:0},extract:{status:extractResp.status,body:extractText}},null,2));})();"
+node -e "(async()=>{const base='https://case-assistant-gateway.wytai.workers.dev'; const opts=await fetch(base+'/ai/intake',{method:'OPTIONS'}); const intakeHappyBody={followUpMode:true,forceFinalize:true,eventTime:'2026-03-18T18:00:00+08:00',messages:[{role:'user',content:'\u6700\u8fd1\u4e09\u5929\u5fc3\u810f\u4e0d\u8212\u670d\u3002'}]}; const intakeHappyResp=await fetch(base+'/ai/intake',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(intakeHappyBody)}); const intakeHappy=await intakeHappyResp.json(); const intakeFollowBody={followUpMode:true,forceFinalize:false,eventTime:'2026-03-18T18:00:00+08:00',messages:[{role:'user',content:'\u4e0d\u592a\u8212\u670d\u3002'}]}; const intakeFollowResp=await fetch(base+'/ai/intake',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(intakeFollowBody)}); const intakeFollow=await intakeFollowResp.json(); const reportBody={reportType:'week',rangeStart:'2026-03-01',rangeEnd:'2026-03-07',events:[{eventTime:'2026-03-02T18:30:00+08:00',rawText:'\u8f7b\u5fae\u5934\u75db\uff0c\u4f11\u606f\u540e\u7f13\u89e3\u3002',symptomSummary:'\u5934\u75db\uff082026-03-02\uff09',notes:null}]}; const reportResp=await fetch(base+'/ai/report',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(reportBody)}); const report=await reportResp.json(); const extractResp=await fetch(base+'/ai/extract',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rawText:'\u6700\u8fd1\u4e09\u5929\u5fc3\u810f\u4e0d\u8212\u670d\u3002',eventTime:'2026-03-18T18:00:00+08:00'})}); const extractText=await extractResp.text(); console.log(JSON.stringify({options:{status:opts.status,allowOrigin:opts.headers.get('access-control-allow-origin'),allowMethods:opts.headers.get('access-control-allow-methods')},intakeHappy:{status:intakeHappyResp.status,intakeStatus:intakeHappy.status,mergedRawText:intakeHappy?.draft?.mergedRawText,symptomSummary:intakeHappy?.draft?.symptomSummary},intakeFollow:{status:intakeFollowResp.status,intakeStatus:intakeFollow.status,questionLength:(intakeFollow.question||'').trim().length},report:{status:reportResp.status,hasTitle:!!report.title,adviceCount:Array.isArray(report.advice)?report.advice.length:0,firstAdviceLength:Array.isArray(report.advice)&&report.advice[0]?report.advice[0].trim().length:0},extract:{status:extractResp.status,body:extractText}},null,2));})();"
 ```

@@ -13,7 +13,7 @@
 
 | 配置项 | 环境 | 是否必填 | 作用 | 备注 |
 |---|---|---|---|---|
-| `AI_API_BASE_URL` | run / test | 否 | AI gateway 基础地址 | 默认值为 `https://ai-api-worker.wytai.workers.dev` |
+| `AI_API_BASE_URL` | run / test | 否 | AI gateway 基础地址 | 默认值为 `https://case-assistant-gateway.wytai.workers.dev` |
 | `RUN_REAL_AI_API_TESTS` | test | 否 | 开启真实 AI 集成测试 | 默认 `false` |
 
 ### gateway 侧
@@ -73,7 +73,7 @@ fvm flutter test
 
 ```bash
 cd apps/ai_case_assistant
-fvm flutter test test/features/ai/real_ai_api_test.dart --dart-define=RUN_REAL_AI_API_TESTS=true --dart-define=AI_API_BASE_URL=https://ai-api-worker.wytai.workers.dev
+fvm flutter test test/features/ai/real_ai_api_test.dart --dart-define=RUN_REAL_AI_API_TESTS=true --dart-define=AI_API_BASE_URL=https://case-assistant-gateway.wytai.workers.dev
 ```
 
 ### gateway 目录执行
