@@ -1,6 +1,6 @@
 # AGENTS.md
 
-本文件定义 Codex、Cursor 等 AI 编码代理在本仓库中的项目级执行规则。
+本文件定义 Codex、Cursor 等 AI 编码代理在本 monorepo 中的根级执行规则。
 
 ## 1. 阅读顺序
 
@@ -10,21 +10,38 @@
 2. `AGENTS.md`
 3. `docs/00-index.md`
 4. `docs/docs-policy.md`
-5. `docs/` 下与当前任务最相关的编号文档
-6. 当前修改模块附近的代码与测试
+5. `docs/15-monorepo-workspace.md`
+6. 与当前任务最相关的编号文档
+7. 当前修改模块附近的代码与测试
 
-如文档已存在，不要只凭代码自行假设需求含义。
+如果任务进入 `services/ai_gateway/**`，必须继续阅读：
 
-## 2. 事实来源
+1. `services/ai_gateway/README.md`
+2. `services/ai_gateway/AGENTS.md`
+3. `services/ai_gateway/docs/00-index.md`
+4. `services/ai_gateway/docs/docs-policy.md`
 
-- 业务、系统、流程、接口、测试与发布事实记录在 `docs/`。
+若根级规则与更深层 `AGENTS.md` 冲突，以更深层作用域规则为准。
+
+## 2. Monorepo 事实边界
+
+- 当前仓库根目录是唯一 git 边界。
+- `apps/ai_case_assistant/` 是 Flutter 客户端目录，不是独立仓库。
+- `services/ai_gateway/` 是 monorepo 内服务目录，不是独立仓库。
+- 根级 `docs/` 承担 workspace 与业务本体文档。
+- `services/ai_gateway/docs/` 承担 gateway 实现文档。
+- `contracts/` 承担 app 与 gateway 的共享机器可读契约。
+
+## 3. 事实来源
+
+- 业务、系统、流程、接口、测试与发布事实记录在 `docs/`、`services/ai_gateway/docs/` 与 `contracts/`。
 - 本文件与 `.cursor/rules/` 只负责执行规则，不承载完整业务事实。
 - 如果文档与代码冲突，不要静默忽略：
   - 先识别冲突点；
   - 若意图明确，在同一任务中同步更新文档和实现；
   - 若意图不明确，保持改动最小并在最终汇报中明确写出歧义。
 
-## 3. 文档决策规则
+## 4. 文档决策规则
 
 ### Rule A: 优先更新已有文档
 
@@ -32,27 +49,23 @@
 
 ### Rule B: 以 `docs/docs-policy.md` 为准
 
-当你判断“该改哪份文档”“是否需要新增文档”时，`docs/docs-policy.md` 是项目内的规范基线。
-其中包含：
-
-- 完整文档清单
-- 模板
-- 示例
-- 命名与放置规则
-- 新建文档判定逻辑
+当你判断“该改哪份文档”“是否需要新增文档”时，`docs/docs-policy.md` 是根级规范基线。
 
 ### Rule C: 新建文档后的必做项
 
-如果新增文档，必须同步更新：
+如果新增根级文档或共享契约，必须同步更新：
 
 - `docs/00-index.md`
-- `README.md` 中受影响的入口说明
-- 相关规则文件中的引用
+- `README.md`
+- 相关规则文件或脚本中的引用
 
-## 4. 强制文档同步
+如果新增或重命名 `services/ai_gateway/docs/` 下文档，必须同步更新该目录自己的索引与说明。
+
+## 5. 强制文档同步
 
 只要改动会影响以下任一方面，必须在同一任务中同步更新文档：
 
+- monorepo 结构或职责边界
 - 项目概览或范围
 - 业务流程
 - 领域对象或字段语义
@@ -63,10 +76,9 @@
 - 测试策略、回归矩阵、发布 smoke
 
 如果任务形成了新的重要架构决策，新增或更新 `docs/adr/*.md`。
-
 如果任务改变了需求理解、范围边界、阶段性取舍或发布策略，更新 `docs/13-requirement-deltas.md`。
 
-## 5. 强制测试与验证同步
+## 6. 强制测试与验证同步
 
 ### 新功能
 
@@ -89,8 +101,12 @@
 如果任务涉及以下任一情况，必须评估并在可行时执行真实接口验证或手工 smoke：
 
 - AI 请求体或响应解析变化
-- `features/ai/`、`core/network/`、`core/config/` 相关逻辑变化
-- `AI_API_BASE_URL`、`RUN_REAL_AI_API_TESTS`、`USE_MOCK_AI_EXTRACT` 等环境变量变化
+- `apps/ai_case_assistant/lib/features/ai/`
+- `apps/ai_case_assistant/lib/features/intake/`
+- `apps/ai_case_assistant/lib/core/network/`
+- `apps/ai_case_assistant/lib/core/config/`
+- `services/ai_gateway/src/`
+- `AI_API_BASE_URL`、`RUN_REAL_AI_API_TESTS`、gateway 凭据或运行时绑定变化
 - 发布链路、演示链路、关键页面主入口变化
 - 本地无法充分替代真实服务或真实设备的行为
 
@@ -100,7 +116,7 @@
 - 未执行原因
 - 剩余风险
 
-## 6. 完成定义
+## 7. 完成定义
 
 除非用户明确只要方案，否则任务不能算完成，直到以下条件同时满足：
 
@@ -113,22 +129,20 @@
 
 不要在未验证时声称“已完成”。
 
-## 7. 执行顺序
+## 8. 执行顺序
 
 默认按以下顺序工作：
 
 1. 先理解当前文档
 2. 再核对代码与测试事实
-3. 先收敛文档与计划
+3. 先收敛文档与契约
 4. 再实施改动
 5. 再补测试
 6. 再执行本地验证
 7. 需要时执行真实接口验证或手工 smoke
 8. 最后汇报结果
 
-如果需求仍模糊，优先补清文档，而不是直接做大范围代码实现。
-
-## 8. 范围控制
+## 9. 范围控制
 
 避免无关重构。
 
@@ -137,13 +151,13 @@
 - 在最终汇报中说明；
 - 只有在它阻塞当前任务或文档策略明确要求时才一起处理。
 
-## 9. 输出要求
+## 10. 输出要求
 
 最终汇报至少包含：
 
 - 修改了哪些代码文件
 - 修改了哪些文档文件
-- 是否新增文档，以及原因
+- 是否新增文档 / 契约，以及原因
 - 新增或更新了哪些测试
 - 本地自动化验证运行了哪些命令
 - 手工 smoke 运行了哪些步骤
@@ -152,7 +166,7 @@
 - 结果摘要
 - 剩余风险 / 后续建议
 
-## 10. 禁止事项
+## 11. 禁止事项
 
 不要：
 

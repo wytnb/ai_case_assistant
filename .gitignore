@@ -26,12 +26,12 @@ migrate_working_dir/
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-/coverage/
+**/.dart_tool/
+**/.flutter-plugins-dependencies
+**/.pub-cache/
+**/.pub/
+**/build/
+**/coverage/
 
 # Symbolication related
 app.*.symbols
@@ -40,13 +40,13 @@ app.*.symbols
 app.*.map.json
 
 # Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
 
 # FVM Version Cache
-.fvm/
-!.fvm/fvm_config.json
+**/.fvm/
+!**/.fvm/fvm_config.json
 
 # 不知道是干啥的文件夹，反正gpt让我屏蔽
 .env

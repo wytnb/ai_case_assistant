@@ -1,53 +1,123 @@
-# AI 健康病例助手
+# AI 健康病例助手 Monorepo
 
-## 项目是什么
+当前仓库已经收敛为一个单一 git 仓库管理的 monorepo。
 
-项目定位、目标用户、目标问题和当前版本目标见 [docs/01-overview.md](docs/01-overview.md)。
+- Flutter 客户端位于 `apps/ai_case_assistant/`
+- AI gateway 位于 `services/ai_gateway/`
+- 根目录承载 workspace 级文档、规则、脚本与共享契约
 
-## 演示版本 APK
-[安装包](./AI健康助手.apk)
+## 仓库结构
 
-Android 包部署统一改为主机侧 ADB 直装，不再通过手机下载 APK 后手动点击安装。
-标准流程是先执行 `adb devices` 确认只有一台目标真机且状态为 `device`，再执行 `adb install -r -t -g <APK路径>`，安装成功后自动启动应用；安装失败时保留完整 ADB 错误输出，不依赖手机上的“继续安装”页面。详细步骤见 [docs/14-android-real-device-testing-sop.md](docs/14-android-real-device-testing-sop.md)。
+```text
+.
+|-- apps/
+|   `-- ai_case_assistant/     # Flutter 客户端
+|-- contracts/                 # app 与 gateway 共享契约
+|-- docs/                      # monorepo / app / workspace 文档
+|-- scripts/                   # workspace 级校验脚本
+|-- services/
+|   `-- ai_gateway/            # AI gateway
+|-- AGENTS.md                  # monorepo 根级执行规则
+`-- README.md                  # monorepo 根级入口
+```
 
-温馨提示：使用程序前需打开梯子/代理，否则将无法正常使用。（原因：AI 代理接口部署在 Cloudflare 上，国内网络无法正常访问 Cloudflare）
+## 当前 AI 能力
 
-## 开发者留言
-- 当前程序仍在继续开发中，更多功能与优化敬请期待。（现在页面太丑了，我晚点会改的哈哈哈）
+- app 新增记录主链路默认走 `POST /ai/intake`
+- app 报告生成走 `POST /ai/report`
+- `POST /ai/extract` 已从 app 当前实现退场，只保留 gateway 侧 retired `404` 回归
+- 共享 HTTP 契约以 [contracts/health-record-ai.openapi.json](./contracts/health-record-ai.openapi.json) 为准
 
-## 怎么跑
+## 阅读顺序
 
-前置要求：
+1. [README.md](./README.md)
+2. [AGENTS.md](./AGENTS.md)
+3. [docs/00-index.md](./docs/00-index.md)
+4. [docs/15-monorepo-workspace.md](./docs/15-monorepo-workspace.md)
+5. 若任务涉及 gateway，再读 [services/ai_gateway/README.md](./services/ai_gateway/README.md) 与 [services/ai_gateway/AGENTS.md](./services/ai_gateway/AGENTS.md)
 
-- 已安装 Flutter 与 FVM
-- 已安装 Android Studio / Android SDK / ADB
-- 需要演示真机或模拟器时，设备已可正常连接
+## 快速开始
 
-安装依赖：
+### 运行 Flutter app
+
+在 `apps/ai_case_assistant/` 下执行：
 
 ```bash
+cd apps/ai_case_assistant
 fvm flutter pub get
-```
-
-生成 Drift 代码：
-
-```bash
-fvm flutter pub run build_runner build --delete-conflicting-outputs
-```
-
-启动应用：
-
-```bash
 fvm flutter run
 ```
 
-环境变量、验证命令、真实 AI 测试和排障总览见 [docs/09-env-and-runbook.md](docs/09-env-and-runbook.md)。
-Android 真机连接、安装、运行与排障 SOP 见 [docs/14-android-real-device-testing-sop.md](docs/14-android-real-device-testing-sop.md)。
-发布前 smoke 检查见 [docs/12-release-smoke-checklist.md](docs/12-release-smoke-checklist.md)。
+预期结果：
 
-## 去哪里读详细文档
+- Flutter 依赖安装完成
+- App 成功启动到首页
 
-- 项目概览：[`docs/01-overview.md`](docs/01-overview.md)
-- 环境与运行手册：[`docs/09-env-and-runbook.md`](docs/09-env-and-runbook.md)
-- Android 真机测试 SOP：[`docs/14-android-real-device-testing-sop.md`](docs/14-android-real-device-testing-sop.md)
-- 完整文档索引：[`docs/00-index.md`](docs/00-index.md)
+### 运行 AI gateway
+
+在 `services/ai_gateway/` 下执行：
+
+```bash
+cd services/ai_gateway
+npm install
+npm run dev
+```
+
+预期结果：
+
+- Worker 本地开发服务启动
+- `/ai/intake` 与 `/ai/report` 可供本地联调
+
+## 常用验证命令
+
+### Workspace 级校验
+
+在仓库根目录执行：
+
+```bash
+python scripts/check_doc_sync.py --working-tree --no-strict
+python scripts/verify/check_ai_contract_sync.py
+```
+
+### Flutter app 校验
+
+在 `apps/ai_case_assistant/` 下执行：
+
+```bash
+cd apps/ai_case_assistant
+fvm flutter analyze
+fvm flutter test
+```
+
+可选真实 AI 自动化：
+
+```bash
+cd apps/ai_case_assistant
+fvm flutter test test/features/ai/real_ai_api_test.dart --dart-define=RUN_REAL_AI_API_TESTS=true --dart-define=AI_API_BASE_URL=https://ai-api-worker.wytai.workers.dev
+```
+
+### Gateway 校验
+
+在 `services/ai_gateway/` 下执行：
+
+```bash
+cd services/ai_gateway
+npm test
+```
+
+`npm run test:live`、`npm run deploy` 与线上 smoke 只在改动触发 gateway 运行时闭环时执行，详情见服务侧文档。
+
+## 新增 AI 功能的默认修改顺序
+
+1. 先更新共享契约 `contracts/health-record-ai.openapi.json`
+2. 再同步 gateway 实现与 app 调用
+3. 再同步根级 / 服务级文档
+4. 最后补测试与一致性校验
+
+## 相关入口
+
+- [docs/00-index.md](./docs/00-index.md)：根级文档索引
+- [docs/15-monorepo-workspace.md](./docs/15-monorepo-workspace.md)：workspace 结构、职责、协作顺序
+- [docs/06-api-contracts.md](./docs/06-api-contracts.md)：根级契约解释
+- [services/ai_gateway/docs/06-api-contracts.md](./services/ai_gateway/docs/06-api-contracts.md)：gateway 实现说明
+- [apps/ai_case_assistant/AI健康助手.apk](./apps/ai_case_assistant/AI健康助手.apk)：当前仓库中的 Android APK 产物

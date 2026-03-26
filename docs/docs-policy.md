@@ -3,6 +3,13 @@
 本文件定义项目文档体系的完整清单、主题边界、更新时机、取证规则、模板、示例、命名与放置规则，以及新建文档判定逻辑。
 `AGENTS.md` 负责要求 AI 必须遵守，本文件负责说明“信息应该写到哪里、凭什么写、什么时候更新、何时新建文档”。
 
+当前仓库是单仓 monorepo：
+
+- `apps/ai_case_assistant/` 为 Flutter 客户端
+- `services/ai_gateway/` 为 AI gateway
+- 根级 `docs/` 负责 workspace 与业务本体事实
+- 根级 `contracts/` 负责共享机器可读契约
+
 ## 1. 目标
 
 文档体系需要同时满足以下目标：
@@ -145,6 +152,10 @@
   - 用途：业务规则、边界条件、默认兜底和异常处理
   - 更新时机：校验规则、降级规则、范围计算规则变化
 
+- `docs/15-monorepo-workspace.md`
+  - 用途：workspace 结构、职责边界、跨 app/gateway 协作顺序
+  - 更新时机：目录结构、运行入口、跨模块协作顺序变化
+
 - `docs/09-env-and-runbook.md`
   - 用途：环境要求、dart-define、启动、验证入口与排障总览
   - 更新时机：环境变量、启动方式、验证命令变化
@@ -179,6 +190,10 @@
   - 用途：Cursor 规则镜像
   - 更新时机：`AGENTS.md` 或文档 / 测试规则变化
 
+- `contracts/`
+  - 用途：app 与 gateway 的共享机器可读契约
+  - 更新时机：HTTP 请求 / 响应 shape、错误结构、公开接口列表变化
+
 - `scripts/verify/`
   - 用途：固定验证脚本目录
   - 更新时机：新增稳定验证脚本时
@@ -192,10 +207,11 @@
 | 变更类型 | 至少应检查 / 更新的文档 |
 |---|---|
 | 项目目标或成功标准变化 | `README.md`, `docs/01-overview.md`, `docs/02-scope-and-nongoals.md` |
+| monorepo 结构或目录职责变化 | `README.md`, `docs/00-index.md`, `docs/05-system-architecture.md`, `docs/15-monorepo-workspace.md`, `docs/13-requirement-deltas.md` |
 | 范围、非目标或阶段边界变化 | `docs/02-scope-and-nongoals.md`, `docs/13-requirement-deltas.md` |
 | 业务流程变化 | `docs/03-business-flows.md`, `docs/08-rules-and-edge-cases.md`, `docs/11-regression-matrix.md` |
 | 核心对象 / 字段语义变化 | `docs/04-domain-model.md`, `docs/06-api-contracts.md`, `docs/07-data-model.md` |
-| AI 请求 / 响应变化 | `docs/06-api-contracts.md`, `docs/08-rules-and-edge-cases.md`, `docs/10-testing-strategy.md` |
+| AI 请求 / 响应变化 | `contracts/health-record-ai.openapi.json`, `docs/06-api-contracts.md`, `docs/08-rules-and-edge-cases.md`, `docs/10-testing-strategy.md` |
 | 表结构 / 迁移 / 文件路径变化 | `docs/07-data-model.md`, `docs/10-testing-strategy.md` |
 | 模块边界 / 依赖方向变化 | `docs/05-system-architecture.md`, `docs/11-regression-matrix.md`, `docs/adr/*.md` |
 | 环境变量 / 运行方式 / 验证命令变化 | `README.md`, `docs/09-env-and-runbook.md`, `docs/12-release-smoke-checklist.md`, `docs/14-android-real-device-testing-sop.md` |
@@ -499,7 +515,8 @@
 - 架构决策记录放在 `docs/adr/`
 - AI 执行规则放在仓库根目录与 `.cursor/rules/`
 - 固定验证脚本放在 `scripts/verify/`
-- 实际自动化测试继续按当前仓库约定放在 `test/` 或 `tests/regression/`
+- 共享契约放在根级 `contracts/`
+- Flutter 自动化测试当前放在 `apps/ai_case_assistant/test/` 或 `tests/regression/`
 
 ### 8.3 索引规则
 
@@ -543,6 +560,7 @@
 1. `docs/00-index.md`
 2. 受影响的入口说明
 3. 相关规则文件中的引用
+4. 若新增的是共享契约，还要同步更新 `docs/06-api-contracts.md`
 4. `scripts/check_doc_sync.py` 中的文档集合与建议映射
 
 ## 11. 给 AI 的执行提示

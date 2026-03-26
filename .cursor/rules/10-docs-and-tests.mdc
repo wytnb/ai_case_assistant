@@ -10,6 +10,7 @@ alwaysApply: true
 
 Update docs in the same task when changing:
 
+- monorepo structure or workspace boundaries
 - scope or behavior
 - business flows
 - interfaces or AI JSON
@@ -40,7 +41,7 @@ Add or update integration-style coverage.
 
 ### Real-interface or manual-smoke triggers
 
-If the task changes AI requests, AI response parsing, network configuration, environment variables, release steps, or critical user-visible flows, evaluate and when feasible run:
+If the task changes AI requests, AI response parsing, network configuration, environment variables, release steps, `services/ai_gateway/src/**`, or critical user-visible flows, evaluate and when feasible run:
 
 - real AI interface validation
 - manual smoke on the main flow

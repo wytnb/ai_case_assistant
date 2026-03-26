@@ -5,15 +5,9 @@
 文档同步检查脚本
 
 用途：
-1. 检查本次 Git 改动中是否同时包含代码 / 脚本文件与文档文件；
+1. 检查本次 Git 改动中是否同时包含代码 / 脚本文件与文档 / 契约文件；
 2. 根据改动路径给出建议至少检查的文档；
-3. 在严格模式下，当改了代码却没有同步任何文档时返回非 0，便于本地或 CI 使用。
-
-默认行为：
-- 默认检查 staged 改动；
-- 默认开启严格模式；
-- 若只是查看工作区改动，可传入 --working-tree；
-- 若只想查看建议而不阻止流程，可传入 --no-strict。
+3. 在严格模式下，当改了代码却没有同步任何文档时返回非 0。
 """
 
 from __future__ import annotations
@@ -24,6 +18,9 @@ import sys
 from pathlib import Path
 from typing import Iterable, List, Set
 
+APP_ROOT = "apps/ai_case_assistant/"
+SERVICE_ROOT = "services/ai_gateway/"
+
 ROOT_DOC_FILES = {
     "README.md",
     "AGENTS.md",
@@ -31,9 +28,13 @@ ROOT_DOC_FILES = {
     "tests/regression/README.md",
 }
 
-RULE_FILES = {
+ROOT_RULE_FILES = {
     ".cursor/rules/00-core.mdc",
     ".cursor/rules/10-docs-and-tests.mdc",
+}
+
+SERVICE_RULE_FILES = {
+    "services/ai_gateway/.cursor/rules/00-core.mdc",
 }
 
 DOC_FILES = {
@@ -53,6 +54,11 @@ DOC_FILES = {
     "docs/12-release-smoke-checklist.md",
     "docs/13-requirement-deltas.md",
     "docs/14-android-real-device-testing-sop.md",
+    "docs/15-monorepo-workspace.md",
+}
+
+CONTRACT_FILES = {
+    "contracts/health-record-ai.openapi.json",
 }
 
 CODE_EXTENSIONS = {
@@ -70,6 +76,11 @@ CODE_EXTENSIONS = {
     ".gradle",
     ".properties",
     ".toml",
+    ".ts",
+    ".mts",
+    ".js",
+    ".cjs",
+    ".mjs",
 }
 
 SCRIPT_EXTENSIONS = {
@@ -81,118 +92,121 @@ SCRIPT_EXTENSIONS = {
 
 IGNORED_PREFIXES = (
     ".git/",
-    "build/",
-    ".dart_tool/",
+    f"{APP_ROOT}.dart_tool/",
+    f"{APP_ROOT}build/",
+    f"{SERVICE_ROOT}.wrangler/",
+    f"{SERVICE_ROOT}node_modules/",
 )
 
 DOC_SUGGESTION_RULES = [
     (
+        "monorepo 结构、入口或协作边界变化",
+        lambda p: p in {"README.md", "AGENTS.md"}
+        or p.startswith("contracts/")
+        or p.startswith("scripts/")
+        or p.startswith(".cursor/"),
+        {
+            "README.md",
+            "AGENTS.md",
+            "docs/00-index.md",
+            "docs/docs-policy.md",
+            "docs/05-system-architecture.md",
+            "docs/06-api-contracts.md",
+            "docs/09-env-and-runbook.md",
+            "docs/10-testing-strategy.md",
+            "docs/15-monorepo-workspace.md",
+        },
+    ),
+    (
         "用户可见页面、主链路或范围变化",
-        lambda p: (p.startswith("lib/features/") and "/presentation/" in p)
-        or p.startswith("lib/app/router/")
-        or p.startswith("lib/app/presentation/"),
+        lambda p: (
+            p.startswith(f"{APP_ROOT}lib/features/") and "/presentation/" in p
+        )
+        or p.startswith(f"{APP_ROOT}lib/app/router/")
+        or p.startswith(f"{APP_ROOT}lib/app/presentation/"),
         {
             "README.md",
             "docs/02-scope-and-nongoals.md",
             "docs/03-business-flows.md",
             "docs/08-rules-and-edge-cases.md",
-            "docs/11-regression-matrix.md",
-            "docs/13-requirement-deltas.md",
-            "docs/14-android-real-device-testing-sop.md",
-        },
-    ),
-    (
-        "AI 接口、网络路径、错误映射或环境变量变化",
-        lambda p: p.startswith("lib/features/ai/")
-        or p.startswith("lib/core/network/")
-        or p.startswith("lib/core/config/"),
-        {
-            "docs/06-api-contracts.md",
-            "docs/08-rules-and-edge-cases.md",
-            "docs/09-env-and-runbook.md",
             "docs/10-testing-strategy.md",
+            "docs/11-regression-matrix.md",
             "docs/12-release-smoke-checklist.md",
             "docs/13-requirement-deltas.md",
             "docs/14-android-real-device-testing-sop.md",
         },
     ),
     (
-        "领域对象、接口字段、JSON 或数据口径变化",
-        lambda p: any(
-            key in p
-            for key in [
-                "/models/",
-                "/entities/",
-                "/dto",
-                "_dto.dart",
-                "_entity.dart",
-                "_vo.dart",
-                "_mapper.dart",
-                "/tables/",
-                "schema",
-                "json",
-            ]
-        ),
+        "AI 契约、网络路径、错误映射或环境变量变化",
+        lambda p: p.startswith(f"{APP_ROOT}lib/features/ai/")
+        or p.startswith(f"{APP_ROOT}lib/features/intake/")
+        or p.startswith(f"{APP_ROOT}lib/core/network/")
+        or p.startswith(f"{APP_ROOT}lib/core/config/")
+        or p.startswith(f"{SERVICE_ROOT}src/"),
         {
-            "docs/04-domain-model.md",
+            "contracts/health-record-ai.openapi.json",
             "docs/06-api-contracts.md",
-            "docs/07-data-model.md",
             "docs/08-rules-and-edge-cases.md",
+            "docs/09-env-and-runbook.md",
             "docs/10-testing-strategy.md",
-            "docs/14-android-real-device-testing-sop.md",
+            "docs/12-release-smoke-checklist.md",
+            "docs/15-monorepo-workspace.md",
+            "services/ai_gateway/docs/06-api-contracts.md",
+            "services/ai_gateway/docs/09-env-and-runbook.md",
+            "services/ai_gateway/docs/10-testing-strategy.md",
         },
     ),
     (
-        "架构边界、模块职责或依赖方向变化",
-        lambda p: p.startswith("lib/app/")
-        or p.startswith("lib/core/")
-        or p.startswith("lib/shared/")
-        or "/datasources/" in p
-        or "/repositories/" in p
-        or "/presentation/providers/" in p
-        or "_repository.dart" in p
-        or "_repository_impl.dart" in p,
+        "领域对象、数据口径或迁移变化",
+        lambda p: p.startswith(f"{APP_ROOT}lib/core/database/")
+        or "/tables/" in p
+        or "schema" in p,
         {
-            "docs/05-system-architecture.md",
+            "docs/04-domain-model.md",
+            "docs/07-data-model.md",
+            "docs/10-testing-strategy.md",
             "docs/11-regression-matrix.md",
         },
     ),
     (
         "环境配置、构建方式或平台元数据变化",
-        lambda p: p in {"pubspec.yaml", "pubspec.lock", ".fvmrc", "analysis_options.yaml"}
-        or p.startswith("android/")
-        or p.startswith("ios/")
-        or p.startswith("macos/")
-        or p.startswith("linux/")
-        or p.startswith("windows/")
-        or p.startswith("web/"),
+        lambda p: p
+        in {
+            f"{APP_ROOT}pubspec.yaml",
+            f"{APP_ROOT}pubspec.lock",
+            f"{APP_ROOT}.fvmrc",
+            f"{APP_ROOT}analysis_options.yaml",
+            ".vscode/settings.json",
+            ".gitignore",
+        }
+        or p.startswith(f"{APP_ROOT}android/")
+        or p.startswith(f"{APP_ROOT}ios/")
+        or p.startswith(f"{APP_ROOT}macos/")
+        or p.startswith(f"{APP_ROOT}linux/")
+        or p.startswith(f"{APP_ROOT}windows/")
+        or p.startswith(f"{APP_ROOT}web/")
+        or p.startswith(f"{SERVICE_ROOT}wrangler"),
         {
             "README.md",
             "docs/09-env-and-runbook.md",
             "docs/12-release-smoke-checklist.md",
             "docs/14-android-real-device-testing-sop.md",
+            "docs/15-monorepo-workspace.md",
+            "services/ai_gateway/docs/09-env-and-runbook.md",
         },
     ),
     (
         "测试口径或测试布局变化",
-        lambda p: p.startswith("test/") or p.startswith("tests/"),
+        lambda p: p.startswith(f"{APP_ROOT}test/")
+        or p.startswith(f"{APP_ROOT}integration_test/")
+        or p.startswith(f"{SERVICE_ROOT}test/")
+        or p.startswith("tests/"),
         {
             "docs/10-testing-strategy.md",
             "docs/11-regression-matrix.md",
             "docs/12-release-smoke-checklist.md",
-            "docs/14-android-real-device-testing-sop.md",
-        },
-    ),
-    (
-        "AI 协作规则、文档同步流程或脚本变化",
-        lambda p: p.startswith("scripts/")
-        or p.startswith(".cursor/")
-        or p == "AGENTS.md",
-        {
-            "AGENTS.md",
-            "docs/docs-policy.md",
-            ".cursor/rules/00-core.mdc",
-            ".cursor/rules/10-docs-and-tests.mdc",
+            "services/ai_gateway/docs/10-testing-strategy.md",
+            "services/ai_gateway/docs/11-regression-matrix.md",
         },
     ),
 ]
@@ -201,48 +215,33 @@ EXTRA_REMINDER_RULES = [
     (
         "如本次改动改变了范围边界、阶段目标或需求理解，请追加检查 docs/13-requirement-deltas.md。",
         lambda files: any(
-            (p.startswith("lib/features/") and "/presentation/" in p)
-            or p.startswith("lib/app/router/")
-            or p.startswith("lib/app/presentation/")
+            (
+                p.startswith(f"{APP_ROOT}lib/features/")
+                and "/presentation/" in p
+            )
+            or p.startswith(f"{APP_ROOT}lib/app/router/")
             for p in files
         ),
     ),
     (
-        "如本次改动形成了新的长期架构取舍，请考虑新增或更新 docs/adr/*.md。",
+        "如本次改动涉及共享契约、app AI 主链路或 gateway 路由，请评估真实接口验证。",
         lambda files: any(
-            p.startswith("lib/app/")
-            or p.startswith("lib/core/")
-            or p.startswith("lib/shared/")
-            or "/datasources/" in p
-            or "/repositories/" in p
-            or "/presentation/providers/" in p
-            or "_repository.dart" in p
-            or "_repository_impl.dart" in p
+            p.startswith("contracts/")
+            or p.startswith(f"{APP_ROOT}lib/features/intake/")
+            or p.startswith(f"{APP_ROOT}lib/features/ai/")
+            or p.startswith(f"{APP_ROOT}lib/core/network/")
+            or p.startswith(f"{APP_ROOT}lib/core/config/")
+            or p.startswith(f"{SERVICE_ROOT}src/")
             for p in files
         ),
     ),
     (
-        "如本次改动涉及 AI 接口、真实网络路径、环境变量或发布步骤，请评估真实接口验证或手工 smoke。",
+        "如本次改动涉及 Android 安装、图片、附件或设备文件，请按 docs/14-android-real-device-testing-sop.md 评估真机 smoke。",
         lambda files: any(
-            p.startswith("lib/features/ai/")
-            or p.startswith("lib/core/network/")
-            or p.startswith("lib/core/config/")
-            or p.startswith("android/")
-            or p.startswith("ios/")
-            or p.startswith("macos/")
-            or p.startswith("web/")
-            for p in files
-        ),
-    ),
-    (
-        "如本次改动涉及 Android 安装、设备网络、图片权限、相册入口、附件或图片预览，请按 docs/14-android-real-device-testing-sop.md 评估并执行真机 smoke。",
-        lambda files: any(
-            p.startswith("android/")
+            p.startswith(f"{APP_ROOT}android/")
             or "image_picker" in p
-            or "/attachments/" in p
             or "attachment" in p
             or "Image.file" in p
-            or "preview" in p
             for p in files
         ),
     ),
@@ -283,9 +282,15 @@ def get_changed_files(staged: bool, against: str | None) -> List[str]:
 
 
 def is_doc_file(path: str) -> bool:
-    if path in ROOT_DOC_FILES or path in DOC_FILES or path in RULE_FILES:
+    if path in ROOT_DOC_FILES or path in ROOT_RULE_FILES or path in SERVICE_RULE_FILES:
+        return True
+    if path in DOC_FILES or path in CONTRACT_FILES:
+        return True
+    if path in {f"{SERVICE_ROOT}README.md", f"{SERVICE_ROOT}AGENTS.md"}:
         return True
     if path.startswith("docs/adr/") and path.endswith(".md"):
+        return True
+    if path.startswith(f"{SERVICE_ROOT}docs/") and path.endswith(".md"):
         return True
     return path.startswith("docs/") and path.endswith(".md")
 
@@ -296,7 +301,7 @@ def is_code_like_file(path: str) -> bool:
         return True
     if suffix in SCRIPT_EXTENSIONS and path.startswith("scripts/"):
         return True
-    return path.startswith("lib/")
+    return path.startswith(f"{APP_ROOT}lib/") or path.startswith(f"{SERVICE_ROOT}src/")
 
 
 def suggest_docs(changed_files: Iterable[str]) -> Set[str]:
@@ -363,7 +368,7 @@ def main() -> int:
     print("=== 文档同步检查结果 ===")
     print(f"改动文件总数：{len(changed_files)}")
     print(f"代码/脚本文件数：{len(code_files)}")
-    print(f"文档 / 规则文件数：{len(doc_files)}")
+    print(f"文档 / 契约 / 规则文件数：{len(doc_files)}")
     print(f"其他文件数：{len(other_files)}")
     print()
 
@@ -373,7 +378,7 @@ def main() -> int:
             print(f"- {path}")
         print()
 
-    print("【已改动文档】")
+    print("【已改动文档 / 契约】")
     if doc_files:
         for path in doc_files:
             print(f"- {path}")
@@ -400,8 +405,8 @@ def main() -> int:
         print()
 
     if code_files and not doc_files:
-        print("[结论] 检测到代码 / 脚本改动，但未检测到任何文档改动。")
-        print("请检查 docs/docs-policy.md，并更新受影响的编号文档。")
+        print("[结论] 检测到代码 / 脚本改动，但未检测到任何文档或契约改动。")
+        print("请检查 docs/docs-policy.md，并更新受影响的根级或服务级文档。")
         return 1 if strict else 0
 
     missing_suggestions = [path for path in suggestions if path not in doc_files]

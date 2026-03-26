@@ -1,0 +1,322 @@
+# 需求变更记录
+
+## 变更记录
+
+### 2026-03-22 - 允许 `/ai/intake` 与 `/ai/report` 输出审慎诊断意见
+
+- 原需求：
+  - 文档整体口径更偏向“建议”，对诊断意见的允许范围描述不够统一
+  - `/ai/intake.actionAdvice`、`/ai/report.advice[]`、`summary`、`markdown` 是否可表达诊断倾向存在文档分散表述
+- 新需求：
+  - `/ai/intake.draft.actionAdvice` 可输出中性、谨慎、非确定性的操作/观察建议或审慎诊断意见
+  - `/ai/report.advice[]` 可输出基于 `events` 证据的审慎诊断意见
+  - `/ai/report.summary` 与 `/ai/report.markdown` 也可出现与 `advice[]` 一致的审慎诊断表述
+  - `symptoms[].name` 继续表示症状或不适标签，不改为诊断字段
+  - 本次只统一文档口径，不新增字段，不调整公开接口
+- 变更原因：
+  - 需要让调用方明确知道两个公开接口可以输出审慎诊断意见，而不只是操作建议
+  - 需要保持结构化症状字段与自由文本诊断表述的职责边界清晰
+- 影响范围：
+  - `docs/01-overview.md`
+  - `docs/03-business-flows.md`
+  - `docs/04-domain-model.md`
+  - `docs/06-api-contracts.md`
+  - `docs/08-rules-and-edge-cases.md`
+  - `docs/13-requirement-deltas.md`
+- 需要更新的文档：
+  - `docs/01-overview.md`
+  - `docs/03-business-flows.md`
+  - `docs/04-domain-model.md`
+  - `docs/06-api-contracts.md`
+  - `docs/08-rules-and-edge-cases.md`
+  - `docs/13-requirement-deltas.md`
+- 需要补的测试：
+  - 无新增自动化测试
+  - 需要做文档全文检索，确认“建议 / 诊断意见 / 诊断结论”口径无残留冲突
+- 风险：
+  - 若后续代码提示词继续演进，文档与实现口径仍需同步维护
+  - 调用方若把“审慎诊断意见”误解为“医学确诊”，仍需在产品侧保持免责声明与展示约束
+- 后续动作：
+  - 后续若实现层新增更明确的诊断约束，再同步更新契约、规则与需求变更记录
+
+### 2026-03-19 - `/ai/intake` 未明确结束时间时默认回填 `eventTime`（Prompt-only）
+
+- 原需求：
+  - `/ai/intake` 在提示词中允许 `endTime` 缺失或在持续中为 `null`
+  - 缺少“未明确结束时间时如何默认填充”的统一口径
+- 新需求：
+  - `/ai/intake` 提示词明确要求：未明确提及症状结束日期/时间时，`endTime` 默认回填 `eventTime`
+  - `precision=date` 时默认回填 `eventTime` 的日期部分（`YYYY-MM-DD`）
+  - `precision=datetime` 时默认回填 `eventTime` 完整时间（带 `+08:00`）
+  - 即使语义为“仍在持续”，也按 `eventTime` 回填 `endTime` 作为本次记录观察终点
+  - 本次仅调整提示词，不新增 Worker 侧强制回填逻辑
+- 变更原因：
+  - 统一结束时间缺失时的填充口径，减少模型自由发挥导致的输出波动
+  - 让症状区间在展示与后续汇总时更稳定
+- 影响范围：
+  - `src/index.ts` 的 intake `systemPrompt` 与 `userPrompt`
+  - `test/index.spec.ts` intake prompt 断言
+  - `docs/06-api-contracts.md`
+  - `docs/08-rules-and-edge-cases.md`
+- 需要更新的文档：
+  - `docs/06-api-contracts.md`
+  - `docs/08-rules-and-edge-cases.md`
+  - `docs/13-requirement-deltas.md`
+- 需要补的测试：
+  - prompt 断言需覆盖“默认回填 eventTime”规则
+  - 回归断言需明确不再出现“无法推断时 start/end 都为 null”“持续中 endTime 为 null”旧口径
+  - 保持既有 intake/report 主流程回归
+- 风险：
+  - 由于是 Prompt-only，最终行为仍依赖上游模型遵循提示词
+  - 若线上观察到偏差，后续可能需要升级为“Prompt + Worker 兜底”双层保障
+- 后续动作：
+  - 继续通过 live 与线上 smoke 观察 `endTime` 是否稳定遵循新口径
+
+### 2026-03-19 - 补全 intake/report 提示词字段语义并收紧 status 判定口径
+
+- 原需求：
+  - `/ai/intake` 与 `/ai/report` 提示词已定义字段类型与格式，但部分字段业务语义仍不够明确
+  - `needs_followup` 时是否保留已识别 `symptoms/notes` 缺少明确口径
+- 新需求：
+  - `/ai/intake` 提示词补全 `status/question/symptoms/notes/actionAdvice` 语义
+  - `status` 采用谨慎收口：信息不足时使用 `needs_followup`，并只追问缺失关键信息
+  - `needs_followup` 场景也要尽量保留已识别的 `symptoms/notes`
+  - `/ai/report` 提示词补全 `reportType/rangeStart/rangeEnd/events` 输入语义及 `title/summary/advice/markdown` 输出语义
+  - 强化 `markdown` 与 `title/summary/advice` 的一致性要求
+- 变更原因：
+  - 降低模型对字段语义的自由解释空间，减少输出歧义
+  - 提升追问阶段信息保留质量，避免不必要的信息丢失
+- 影响范围：
+  - `src/index.ts` intake/report prompt 文案
+  - `docs/06-api-contracts.md`
+  - `docs/08-rules-and-edge-cases.md`
+  - `test/index.spec.ts` 提示词断言
+- 需要更新的文档：
+  - `docs/06-api-contracts.md`
+  - `docs/08-rules-and-edge-cases.md`
+  - `docs/13-requirement-deltas.md`
+- 需要补的测试：
+  - intake prompt 字段语义断言
+  - report prompt 字段语义断言
+  - 既有 `needs_followup/final` 分支与 payload 校验回归
+- 风险：
+  - 更严格语义可能提升 `needs_followup` 触发频率，影响部分调用方交互节奏
+  - 上游模型表现仍可能波动，需通过 live 与线上 smoke 持续观察
+- 后续动作：
+  - 继续关注 live 测试中 `needs_followup` 与 `final` 的分布是否符合预期
+
+### 2026-03-19 - 固化“业务改动必须测试+部署”执行规则
+
+- 原需求：
+  - 对业务代码改动可直接执行 `npm run deploy`，但规则口径更偏“授权可执行”
+  - live 测试与线上 smoke 在多处文档中仍以“优先考虑”描述
+- 新需求：
+  - 当改动集合包含 `src/**` 或会影响线上运行行为的配置改动时，强制执行闭环：
+    - `npm test`
+    - `npm run test:live`
+    - `npm run deploy`
+    - `docs/12-release-smoke-checklist.md` 线上 smoke
+  - 仅改人类阅读文档时，不触发强制部署闭环
+  - 若任一必跑项无法执行，本轮任务不得标记“完成”，必须在最终汇报明确未执行项与阻塞原因
+- 变更原因：
+  - 需要将“可执行”升级为“必须执行”，降低执行口径漂移
+  - 需要让 Codex 在后续任务中统一按同一规则落地测试和发布
+- 影响范围：
+  - `AGENTS.md`
+  - `docs/09-env-and-runbook.md`
+  - `docs/10-testing-strategy.md`
+  - `docs/12-release-smoke-checklist.md`
+- 需要更新的文档：
+  - `docs/09-env-and-runbook.md`
+  - `docs/10-testing-strategy.md`
+  - `docs/12-release-smoke-checklist.md`
+  - `docs/13-requirement-deltas.md`
+- 需要补的测试：
+  - 无新增自动化测试；需收紧执行闭环与汇报口径
+- 风险：
+  - 对凭据/发布权限敏感，阻塞时会提高“未完成”任务比例
+  - 流程更严格，单次业务改动交付时间可能上升
+- 后续动作：
+  - 在后续代码任务中持续核对最终汇报是否完整记录闭环执行结果
+
+### 2026-03-19 - `/ai/intake` 提示词收紧 `messages` 语义，并将多症状摘要改为换行展示
+
+- 原需求：
+  - `/ai/intake` 提示词中仍向模型暴露 `mergedRawText`
+  - 提示词中包含“worker 会如何处理”的实现细节
+  - `symptomSummary` 多症状使用全角分号 `；` 拼接
+- 新需求：
+  - `mergedRawText` 仅保留在最终响应里返回给调用方，不再发送给模型
+  - `/ai/intake` 提示词明确说明 `messages[]` 的语义：`user` 代表患者，`assistant` 代表 AI，`content` 是对应问题或回答
+  - 模型读取每条 `content` 时，必须结合相邻问答语义并与请求 `eventTime` 关联理解
+  - `symptomSummary` 多症状改为按换行分隔，每个症状单独一行
+- 变更原因：
+  - 需要减少对模型无关的实现细节，降低提示词噪声
+  - 需要强化模型对 `eventTime` 锚点和消息语义的理解，避免忽略时间上下文
+  - 需要让多症状摘要在调用方界面中更易读
+- 影响范围：
+  - `/ai/intake` prompt
+  - `symptoms -> symptomSummary` 本地格式化
+  - API 契约、规则文档与回归测试
+- 需要更新的文档：
+  - `docs/03-business-flows.md`
+  - `docs/06-api-contracts.md`
+  - `docs/08-rules-and-edge-cases.md`
+  - `docs/11-regression-matrix.md`
+  - `docs/13-requirement-deltas.md`
+- 需要补的测试：
+  - `/ai/intake` prompt 断言更新
+  - 多症状 `symptomSummary` 换行格式回归
+  - live 测试中规范化 `symptomSummary` 夹具更新
+- 风险：
+  - intake 追问与时间理解仍受模型行为影响
+  - 依赖旧分号展示口径的调用方若做了字符串解析，需要同步调整
+- 后续动作：
+  - 继续观察调用方是否仍依赖旧的分号分隔格式
+
+### 2026-03-19 - 正式下线公开 `/ai/extract`，并让 `/ai/intake` 提示词自包含症状规则
+
+- 原需求：
+  - 当前公开端点为 `/ai/intake`、`/ai/extract`、`/ai/report`
+  - `/ai/intake` 中通过“`symptoms` 规则与 `/ai/extract` 一致”来复用另一条链路的规则描述
+  - 业务已不再实际使用 `/ai/extract`
+- 新需求：
+  - 公开业务端点收敛为 `/ai/intake` 与 `/ai/report`
+  - `POST /ai/extract` 立即退场，统一返回 `404 NOT_FOUND`
+  - `/ai/intake` 提示词直接写出完整 `symptoms` 规则，不再跨接口引用
+  - 结构化 `symptoms` 校验与 `symptomSummary` 格式化逻辑保留为 Worker 内部能力
+- 变更原因：
+  - 需要消除 intake 提示词里的失效规则引用
+  - 需要让公开契约面与真实业务使用面一致
+- 影响范围：
+  - `/ai/intake` prompt、路由与本地格式化逻辑说明
+  - `/ai/extract` 公开契约、测试、live、smoke、runbook
+  - README、AGENTS、核心事实文档、ADR
+- 需要更新的文档：
+  - `README.md`
+  - `docs/03-business-flows.md`
+  - `docs/05-system-architecture.md`
+  - `docs/06-api-contracts.md`
+  - `docs/08-rules-and-edge-cases.md`
+  - `docs/09-env-and-runbook.md`
+  - `docs/10-testing-strategy.md`
+  - `docs/12-release-smoke-checklist.md`
+  - `docs/13-requirement-deltas.md`
+- 需要补的测试：
+  - `/ai/intake` prompt 自包含规则断言
+  - `/ai/intake` 摘要格式化回归
+  - `POST /ai/extract` 返回 `404` 的回归
+  - intake/report live 与线上 smoke
+- 风险：
+  - 旧调用方若仍访问 `/ai/extract`，会直接收到 `404`
+  - intake 的追问质量仍受模型行为影响
+- 后续动作：
+  - 持续在 smoke 与回归矩阵中保留 retired `/ai/extract` 的 `404` 检查
+
+### 2026-03-19 - 新增 `/ai/intake`，保持无状态追问并复用内部摘要格式化能力
+
+- 原需求：
+  - 当前公开端点只有 `/ai/report`
+  - Worker 不支持围绕完整消息历史的 intake 追问与草稿整理
+- 新需求：
+  - 新增 `POST /ai/intake`
+  - Worker 继续无状态运行，客户端每轮都提交完整 `messages[]`
+  - `needs_followup` 时允许追问任意“当前健康记录相关”的问题
+  - `question` 保持 `string | null`
+  - `draft.symptomSummary` 不由模型直出，而是由 Worker 基于结构化 `symptoms` 本地格式化
+  - 当 `followUpMode=false` 或 `forceFinalize=true` 时，对外必须返回 `final`
+- 变更原因：
+  - 需要为调用方增加“AI 追问、AI 建议”后端能力
+  - 需要在不引入数据库、缓存、队列的前提下支持多轮 intake
+- 影响范围：
+  - 路由层新增 `/ai/intake`
+  - `docs/03-business-flows.md`
+  - `docs/04-domain-model.md`
+  - `docs/05-system-architecture.md`
+  - `docs/06-api-contracts.md`
+  - `docs/08-rules-and-edge-cases.md`
+  - `docs/10-testing-strategy.md`
+  - `docs/11-regression-matrix.md`
+- 需要更新的文档：
+  - `README.md`
+  - `docs/03-business-flows.md`
+  - `docs/04-domain-model.md`
+  - `docs/05-system-architecture.md`
+  - `docs/06-api-contracts.md`
+  - `docs/08-rules-and-edge-cases.md`
+  - `docs/10-testing-strategy.md`
+  - `docs/11-regression-matrix.md`
+  - `docs/13-requirement-deltas.md`
+- 需要补的测试：
+  - `/ai/intake` happy path
+  - `/ai/intake` follow-up 路径
+  - `followUpMode=false` 与 `forceFinalize=true` 的强制收口
+  - `draft.symptomSummary` 的本地格式化
+- 风险：
+  - 无状态设计要求客户端自行携带完整历史
+  - intake 追问质量与结构化结果仍依赖模型行为
+- 后续动作：
+  - 继续通过自动化测试、live 测试与 smoke 观察多轮 intake 的稳定性
+
+### 2026-03-19 - `/ai/report` 的建议列表改为完整建议句，但不调整 `summary` 与 `markdown`
+
+- 原需求：
+  - `/ai/report.advice` 只要求是字符串数组，未限制每项的信息量
+- 新需求：
+  - `/ai/report.advice[]` 的每一项应按情况包含评估结果、对应依据、具体建议
+  - 若缺少明确依据，可省略依据，但仍需保留评估结果与具体建议
+  - `summary` 与 `markdown` 不作契约或结构上的调整
+- 变更原因：
+  - 需要避免 `advice` 退化为过短的口号式短语
+  - 需要让报告建议更易直接给调用方展示
+- 影响范围：
+  - `/ai/report` prompt
+  - `docs/06-api-contracts.md`
+  - `docs/08-rules-and-edge-cases.md`
+  - `docs/10-testing-strategy.md`
+  - `docs/11-regression-matrix.md`
+- 需要更新的文档：
+  - `docs/06-api-contracts.md`
+  - `docs/08-rules-and-edge-cases.md`
+  - `docs/10-testing-strategy.md`
+  - `docs/11-regression-matrix.md`
+  - `docs/13-requirement-deltas.md`
+- 需要补的测试：
+  - `advice` 空白字符串失败路径
+  - live report 输出中 `advice[0]` 不为口号式短语
+  - 线上 smoke 的 report happy path 断言更新
+- 风险：
+  - 建议文本变长后，调用方界面可能需要适配展示空间
+  - 上游模型仍可能偶发输出过短建议，需要持续观测
+- 后续动作：
+  - 在 live 与 smoke 中继续关注建议句完整性
+
+### 2026-03-18 - `/ai/extract` 改为以 `eventTime` 为锚点，`/ai/report` 统一使用单字段 `eventTime`
+
+- 原需求：
+  - `/ai/extract` 曾对外暴露独立时间字段
+  - `/ai/report` 曾按 `eventStartTime` / `eventEndTime` 建模事件
+- 新需求：
+  - `/ai/extract` 请求必须提供 `eventTime`
+  - `/ai/extract` 成功响应只返回 `symptomSummary` 与 `notes`
+  - 相对时间解释必须以请求中的 `eventTime` 为准
+  - `/ai/report.events[]` 统一为 `{ eventTime, rawText, symptomSummary, notes }`
+- 变更原因：
+  - 统一时间锚点口径，避免不同接口对相对时间的解释不一致
+  - 简化报告输入结构
+- 影响范围：
+  - `/ai/extract` 历史契约
+  - `/ai/report` 事件字段命名
+  - 相关文档、测试与历史决策记录
+- 需要更新的文档：
+  - `docs/06-api-contracts.md`
+  - `docs/08-rules-and-edge-cases.md`
+  - `docs/13-requirement-deltas.md`
+- 需要补的测试：
+  - `/ai/report` 旧字段 `eventStartTime` / `eventEndTime` 的失败路径
+  - 历史 `/ai/extract` 时间锚点相关校验
+- 风险：
+  - 依赖旧字段命名的调用方需要同步迁移
+  - 这是一条历史记录；当前 `/ai/extract` 已在 2026-03-19 退场
+- 后续动作：
+  - 当前作为历史背景保留；真实对外行为以现行契约为准

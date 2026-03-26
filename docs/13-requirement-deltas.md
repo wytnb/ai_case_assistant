@@ -6,6 +6,37 @@
 
 ## 变更记录
 
+### 2026-03-26 - 仓库收口为 monorepo，并把 Flutter app 迁入 `apps/ai_case_assistant`
+
+- 原需求：
+  - 仓库根目录直接承载 Flutter 工程
+  - `services/ai_gateway/` 已复制进入仓库，但根级入口、文档、契约与测试还未完成 monorepo 收口
+  - app 文档、代码和测试里仍把 `/ai/extract` 当成当前能力的一部分
+- 新需求：
+  - 根目录成为 monorepo workspace 层
+  - Flutter app 迁入 `apps/ai_case_assistant/`
+  - `contracts/health-record-ai.openapi.json` 成为共享契约源
+  - app 当前公开能力收敛为 `/ai/intake` 与 `/ai/report`
+- 变更原因：
+  - 让 app、gateway、文档、测试与契约在一个仓库内围绕同一套事实协作
+  - 清理已退场 `/ai/extract` 在 app 侧的漂移残留
+- 影响范围：
+  - 根级 README / AGENTS / docs / scripts
+  - `apps/ai_case_assistant/**`
+  - `services/ai_gateway/**`
+  - `contracts/**`
+- 需要更新的文档：
+  - 根级入口文档、workspace 文档、接口契约文档、运行文档、测试文档
+  - gateway 的入口与运行 / 契约说明
+- 需要补的测试：
+  - app 的 `/ai/intake`、`/ai/report` 契约解析与真实 AI 测试
+  - root 级共享契约一致性校验
+- 风险：
+  - Flutter 工程迁移后，部分本地 IDE / 命令路径可能需要重新适配
+  - 文档中若仍遗留旧路径或旧接口，会继续造成理解漂移
+- 后续动作：
+  - 若后面继续扩展 AI 能力，先从共享契约出发改起
+
 ### 2026-03-26 - 记录返回链路与真机测试默认保留已安装 App
 
 - 原需求：

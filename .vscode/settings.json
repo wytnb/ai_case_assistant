@@ -1,6 +1,6 @@
 {
-  "dart.flutterSdkPath": ".fvm/versions/3.41.4",
-  "dart.sdkPath": ".fvm/flutter_sdk/bin/cache/dart-sdk",
+  "dart.flutterSdkPath": "apps/ai_case_assistant/.fvm/versions/3.41.4",
+  "dart.sdkPath": "apps/ai_case_assistant/.fvm/flutter_sdk/bin/cache/dart-sdk",
   "dart.runPubGetOnPubspecChanges": "always",
   "dart.previewFlutterUiGuides": true
 }

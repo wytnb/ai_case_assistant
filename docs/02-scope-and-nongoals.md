@@ -4,6 +4,8 @@
 
 当前 MVP 已纳入范围的能力如下：
 
+- 根目录作为唯一 git 边界管理 app 与 gateway。
+- Flutter 客户端位于 `apps/ai_case_assistant/`，gateway 位于 `services/ai_gateway/`。
 - 首页提供主入口与“追问模式”开关。
 - “追问模式”开关通过本地 `app_settings` 持久化，缺失设置时默认 `false`。
 - 首次进入应用必须完成免责说明勾选与同意，未同意前不能继续使用首页。
@@ -17,18 +19,16 @@
 - 正式记录支持软删除；草稿记录支持硬删除。
 - 正式记录详情页展示 `rawText`、`symptomSummary`、`notes`、`actionAdvice` 与附件。
 - 报告页可生成 `week`、`month`、`quarter` 报告，且只基于正式 `health_events`。
-- 报告详情页末尾固定展示免责说明，不依赖报告内容是否为空。
-- 若某份已生成报告覆盖的来源记录在报告生成后被删除，报告详情页提示“部分记录来源已被删除”。
-- 旧 `POST /ai/extract` 仍保留，用于兼容旧链路和回归测试。
+- 根级 `contracts/health-record-ai.openapi.json` 作为 app 与 gateway 的共享 HTTP 契约。
+- gateway 侧保留 retired `/ai/extract` -> `404` 回归，但它不再是 app 当前能力。
 
 ## 当前不做
-
-除非用户明确单独提出，当前阶段不做以下能力：
 
 - 账号登录、多用户、多档案
 - 云同步、云端草稿、服务端会话存储
 - OCR、图片内容提取、语音输入
 - 自动诊断、在线问诊、医疗机构对接
+- 通用化 AI gateway 平台改造
 - 复杂医学结构化 schema
 - 记录编辑
 - 追问页内新增图片附件
@@ -40,8 +40,9 @@
 
 - Android 演示优先
 - 单用户、本地优先
-- AI 负责辅助追问、提取和汇总，不做诊断
+- AI 负责辅助追问、整理与汇总，不做最终医学诊断
 - 主链路围绕“新增记录 -> 追问或完成 -> 浏览记录 -> 生成报告”
+- monorepo 只做最小可行收口，不引入重型 workspace 工具
 
 ### 后续版本方向
 
@@ -65,14 +66,15 @@
 ### 技术约束
 
 - 数据当前只保存在本地 Drift 与应用私有目录。
-- AI 追问、提取与报告依赖外部 HTTP 接口。
-- 图片附件不会参与 `/ai/intake` 或 `/ai/extract`。
+- AI 能力依赖 `services/ai_gateway/` 提供的 HTTP 接口。
+- 图片附件不会直接参与 `/ai/intake` 或 `/ai/report` 请求体。
 - 所有通过 `/ai/intake` 创建的正式记录都会保留并复用一个 intake session。
-- 旧 `/ai/extract` 历史记录没有 intake session 关联。
+- 历史旧 `/ai/extract` 记录没有 intake session 关联。
 
 ### 运行约束
 
 - 仓库有多平台骨架，但当前验证重点是 Android。
+- 没有根级 workspace 工具链；运行方式依赖“进入对应目录执行命令”。
 - 没有 CI、没有正式发布流水线、没有统一监控平台。
 
 ### 文档约束

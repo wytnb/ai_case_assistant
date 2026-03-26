@@ -14,11 +14,20 @@ Before making a plan or editing code, read:
 2. `AGENTS.md`
 3. `docs/00-index.md`
 4. `docs/docs-policy.md`
-5. relevant docs under `docs/`
+5. `docs/15-monorepo-workspace.md`
+6. relevant docs under `docs/`
+
+If the task enters `services/ai_gateway/**`, also read:
+
+1. `services/ai_gateway/README.md`
+2. `services/ai_gateway/AGENTS.md`
+3. `services/ai_gateway/docs/00-index.md`
+4. `services/ai_gateway/docs/docs-policy.md`
 
 ## Source of Truth
 
 - Business and system facts live in `docs/`.
+- Shared HTTP contract lives in `contracts/`.
 - Execution rules live in `AGENTS.md` and this rules folder.
 - Do not assume intent from code alone when docs already exist.
 
@@ -29,6 +38,8 @@ Before making a plan or editing code, read:
 - Keep changes scoped to the requested task.
 - When requirements are fuzzy, refine docs first.
 - If docs and code conflict, identify the conflict and update the right source in the same task when intent is clear.
+- Treat the repository root as the only git boundary.
+- Treat `apps/ai_case_assistant/` and `services/ai_gateway/` as monorepo subdirectories, not independent repositories.
 
 ## Required Final Output
 

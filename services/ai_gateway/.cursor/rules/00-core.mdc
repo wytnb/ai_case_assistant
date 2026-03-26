@@ -1,0 +1,44 @@
+---
+description: Core project rules for Cursor agent
+globs:
+alwaysApply: true
+---
+
+# Core Rules
+
+## Read Order
+Before planning or editing, read:
+1. `README.md`
+2. `AGENTS.md`
+3. `docs/00-index.md`
+4. `docs/docs-policy.md`
+5. relevant docs under `docs/`
+6. relevant code/config/tests
+
+## Source Of Truth
+- Project facts live in `docs/`
+- Execution rules live in `AGENTS.md` and this rules folder
+- Do not infer intent from code alone when documentation exists
+
+## Project Guardrails
+- Keep the public API limited to `/ai/intake` and `/ai/report` unless requirements explicitly change
+- Do not write secrets into `wrangler.jsonc`
+- If `wrangler` bindings change, run `npx wrangler types`
+
+## Default Behavior
+- Prefer updating existing docs over creating new docs
+- Keep changes scoped
+- When requirements are fuzzy, refine docs first
+- If a new doc is created, update `docs/00-index.md`
+- Default to Simplified Chinese when writing plans or implementation breakdowns unless the task explicitly requires another language
+- After each logically complete, testable round of code changes, you may run `npm run deploy` without re-asking
+- This deploy permission applies after a finished change batch, not after every file save
+
+## Required Final Output
+At task end, report:
+- code changes
+- docs changes
+- whether a new doc was created
+- tests added or updated
+- commands executed
+- remaining risks

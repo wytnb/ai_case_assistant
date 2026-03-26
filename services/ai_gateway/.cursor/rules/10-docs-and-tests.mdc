@@ -1,0 +1,49 @@
+---
+description: Documentation and testing enforcement rules
+globs:
+alwaysApply: true
+---
+
+# Docs And Tests Rules
+
+## Documentation Sync
+Update docs in the same task when changing:
+- behavior
+- flows
+- interfaces
+- data shapes
+- architecture boundaries
+- env or runbook steps
+- release procedures
+
+Use `docs/docs-policy.md` to decide whether to update an existing doc or create a new one.
+If no doc needs updating, explicitly report why the existing docs already cover the change.
+
+## Testing Sync
+### New feature
+Add:
+- happy-path coverage
+- at least one edge case
+- at least one failure-path test
+
+### Bug fix
+Add or update a regression test.
+
+### Contract change
+Add or update integration-style tests.
+
+### Release-impacting change
+Review `docs/12-release-smoke-checklist.md`.
+
+### Validation reporting
+For code-affecting tasks, explicitly report:
+- whether `npm test` was run
+- whether `npm run test:live` was run
+- whether online smoke was run
+- if any layer was skipped, why it was skipped
+
+## Done Criteria
+Do not mark the task done unless:
+- docs are updated
+- tests are updated when required
+- validation commands were executed, or the blocker is explicitly reported
