@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:ai_case_assistant/app/router/records_navigation.dart';
 import 'package:ai_case_assistant/core/database/app_database.dart';
 import 'package:ai_case_assistant/features/health_record/presentation/providers/health_record_providers.dart';
 import 'package:ai_case_assistant/features/intake/presentation/providers/intake_providers.dart';
@@ -15,6 +16,15 @@ class HealthRecordDetailPage extends ConsumerWidget {
 
   static final DateFormat _dateFormatter = DateFormat('yyyy-MM-dd HH:mm');
 
+  void _handleBackNavigation(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+
+    context.go(buildRecordsLocation(tab: HealthRecordListTab.records));
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AsyncValue<HealthEvent?> healthRecordAsync = ref.watch(
@@ -29,113 +39,126 @@ class HealthRecordDetailPage extends ConsumerWidget {
       deleteHealthRecordControllerProvider,
     );
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('记录详情'),
-        actions: <Widget>[
-          if (healthRecordAsync.valueOrNull != null)
-            IconButton(
-              onPressed: deleteState.isLoading
-                  ? null
-                  : () => _deleteHealthRecord(context, ref),
-              icon: const Icon(Icons.delete_outline),
-              tooltip: '删除正式记录',
-            ),
-        ],
-      ),
-      body: healthRecordAsync.when(
-        data: (HealthEvent? healthRecord) {
-          if (healthRecord == null) {
-            return const _InfoState(
-              title: '未找到这条记录',
-              message: '这条健康记录可能已被删除，或当前 ID 无效。',
-            );
-          }
+    return PopScope<void>(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, void result) {
+        if (didPop) {
+          return;
+        }
+        _handleBackNavigation(context);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: BackButton(onPressed: () => _handleBackNavigation(context)),
+          title: const Text('记录详情'),
+          actions: <Widget>[
+            if (healthRecordAsync.valueOrNull != null)
+              IconButton(
+                onPressed: deleteState.isLoading
+                    ? null
+                    : () => _deleteHealthRecord(context, ref),
+                icon: const Icon(Icons.delete_outline),
+                tooltip: '删除正式记录',
+              ),
+          ],
+        ),
+        body: healthRecordAsync.when(
+          data: (HealthEvent? healthRecord) {
+            if (healthRecord == null) {
+              return const _InfoState(
+                title: '未找到这条记录',
+                message: '这条健康记录可能已被删除，或当前 ID 无效。',
+              );
+            }
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: <Widget>[
-              _DetailSection(
-                title: '事件时间',
-                child: Text(_dateFormatter.format(healthRecord.createdAt)),
-              ),
-              _DetailSection(
-                title: '原始文本',
-                child: Text(
-                  _displayTextOrPlaceholder(healthRecord.rawText, '暂无原始文本'),
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: <Widget>[
+                _DetailSection(
+                  title: '事件时间',
+                  child: Text(_dateFormatter.format(healthRecord.createdAt)),
                 ),
-              ),
-              _DetailSection(
-                title: '症状摘要',
-                child: Text(
-                  _displayTextOrPlaceholder(
-                    healthRecord.symptomSummary,
-                    '暂无 AI 摘要',
+                _DetailSection(
+                  title: '原始文本',
+                  child: Text(
+                    _displayTextOrPlaceholder(healthRecord.rawText, '暂无原始文本'),
                   ),
                 ),
-              ),
-              _DetailSection(
-                title: '备注',
-                child: Text(
-                  _displayTextOrPlaceholder(healthRecord.notes, '暂无备注'),
+                _DetailSection(
+                  title: '症状摘要',
+                  child: Text(
+                    _displayTextOrPlaceholder(
+                      healthRecord.symptomSummary,
+                      '暂无 AI 摘要',
+                    ),
+                  ),
                 ),
-              ),
-              _DetailSection(
-                title: '建议',
-                child: Text(
-                  _displayTextOrPlaceholder(healthRecord.actionAdvice, '暂无建议'),
+                _DetailSection(
+                  title: '备注',
+                  child: Text(
+                    _displayTextOrPlaceholder(healthRecord.notes, '暂无备注'),
+                  ),
                 ),
-              ),
-              _DetailSection(
-                title: '附件',
-                child: attachmentsAsync.when(
-                  data: (List<Attachment> attachments) {
-                    if (attachments.isEmpty) {
-                      return const Text('暂无附件');
+                _DetailSection(
+                  title: '建议',
+                  child: Text(
+                    _displayTextOrPlaceholder(
+                      healthRecord.actionAdvice,
+                      '暂无建议',
+                    ),
+                  ),
+                ),
+                _DetailSection(
+                  title: '附件',
+                  child: attachmentsAsync.when(
+                    data: (List<Attachment> attachments) {
+                      if (attachments.isEmpty) {
+                        return const Text('暂无附件');
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: attachments
+                            .map(
+                              (Attachment attachment) =>
+                                  _AttachmentPreview(attachment: attachment),
+                            )
+                            .toList(),
+                      );
+                    },
+                    loading: () => const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: CircularProgressIndicator(),
+                    ),
+                    error: (_, _) => const Text('附件加载失败，请稍后重试。'),
+                  ),
+                ),
+                linkedSessionsAsync.when(
+                  data: (Map<String, IntakeSession> linkedSessions) {
+                    final IntakeSession? linkedSession =
+                        linkedSessions[healthRecord.id];
+                    if (linkedSession == null) {
+                      return const SizedBox.shrink();
                     }
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: attachments
-                          .map(
-                            (Attachment attachment) =>
-                                _AttachmentPreview(attachment: attachment),
-                          )
-                          .toList(),
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: FilledButton.tonal(
+                        onPressed: () =>
+                            context.push('/intake/${linkedSession.id}'),
+                        child: const Text('追加补充'),
+                      ),
                     );
                   },
-                  loading: () => const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: CircularProgressIndicator(),
-                  ),
-                  error: (_, _) => const Text('附件加载失败，请稍后重试。'),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, _) => const SizedBox.shrink(),
                 ),
-              ),
-              linkedSessionsAsync.when(
-                data: (Map<String, IntakeSession> linkedSessions) {
-                  final IntakeSession? linkedSession =
-                      linkedSessions[healthRecord.id];
-                  if (linkedSession == null) {
-                    return const SizedBox.shrink();
-                  }
-
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: FilledButton.tonal(
-                      onPressed: () =>
-                          context.push('/intake/${linkedSession.id}'),
-                      child: const Text('追加补充'),
-                    ),
-                  );
-                },
-                loading: () => const SizedBox.shrink(),
-                error: (_, _) => const SizedBox.shrink(),
-              ),
-            ],
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => const _InfoState(title: '记录加载失败', message: '请稍后重试。'),
+              ],
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (_, _) => const _InfoState(title: '记录加载失败', message: '请稍后重试。'),
+        ),
       ),
     );
   }
@@ -183,7 +206,7 @@ class HealthRecordDetailPage extends ConsumerWidget {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('正式记录已删除。')));
-      context.go('/records');
+      _handleBackNavigation(context);
     } catch (_) {
       if (!context.mounted) {
         return;

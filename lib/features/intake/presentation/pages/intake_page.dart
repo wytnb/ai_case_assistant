@@ -1,3 +1,4 @@
+import 'package:ai_case_assistant/app/router/records_navigation.dart';
 import 'package:ai_case_assistant/core/database/app_database.dart';
 import 'package:ai_case_assistant/features/intake/domain/exceptions/ai_intake_exception.dart';
 import 'package:ai_case_assistant/features/intake/presentation/providers/intake_providers.dart';
@@ -17,6 +18,15 @@ class IntakePage extends ConsumerStatefulWidget {
 class _IntakePageState extends ConsumerState<IntakePage> {
   final TextEditingController _replyController = TextEditingController();
   bool _didAutoResume = false;
+
+  void _handleBackNavigation() {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+
+    context.go(buildRecordsLocation(tab: HealthRecordListTab.drafts));
+  }
 
   @override
   void dispose() {
@@ -119,141 +129,151 @@ class _IntakePageState extends ConsumerState<IntakePage> {
         (currentSession.status == 'questioning' ||
             currentSession.status == 'awaiting_user_input');
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('继续追问'),
-        actions: <Widget>[
-          if (canDeleteDraft)
-            IconButton(
+    return PopScope<void>(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, void result) {
+        if (didPop) {
+          return;
+        }
+        _handleBackNavigation();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: BackButton(onPressed: _handleBackNavigation),
+          title: const Text('继续追问'),
+          actions: <Widget>[
+            if (canDeleteDraft)
+              IconButton(
                 onPressed: deleteState.isLoading
                     ? null
                     : () => _deleteDraftSession(context),
                 icon: const Icon(Icons.delete_outline),
                 tooltip: '删除草稿记录',
               ),
-        ],
-      ),
-      body: sessionAsync.when(
-        data: (IntakeSession? session) {
-          if (session == null) {
-            return const _IntakeInfoState(
-              title: '未找到追问会话',
-              message: '该追问会话可能已被清理或 ID 无效。',
-            );
-          }
+          ],
+        ),
+        body: sessionAsync.when(
+          data: (IntakeSession? session) {
+            if (session == null) {
+              return const _IntakeInfoState(
+                title: '未找到追问会话',
+                message: '该追问会话可能已被清理或 ID 无效。',
+              );
+            }
 
-          if (session.status == 'questioning' && !_didAutoResume) {
-            _didAutoResume = true;
-            Future<void>.microtask(_resumeQuestioning);
-          }
+            if (session.status == 'questioning' && !_didAutoResume) {
+              _didAutoResume = true;
+              Future<void>.microtask(_resumeQuestioning);
+            }
 
-          return messagesAsync.when(
-            data: (List<IntakeMessage> messages) {
-              final bool canReply =
-                  !isSubmitting && session.status != 'questioning';
-              final bool showForceFinalize =
-                  session.status == 'awaiting_user_input';
-              return Column(
-                children: <Widget>[
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.all(16),
-                      children: <Widget>[
-                        ...messages.map(
-                          (IntakeMessage message) =>
-                              _MessageBubble(message: message),
-                        ),
-                        const SizedBox(height: 8),
-                        if (session.status != 'awaiting_user_input')
-                          _StatusCard(session: session),
-                        if (actionState.hasError) ...<Widget>[
-                          const SizedBox(height: 12),
-                          Text(
-                            _buildErrorMessage(actionState.error),
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.error,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  if (session.status == 'questioning')
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      child: Column(
+            return messagesAsync.when(
+              data: (List<IntakeMessage> messages) {
+                final bool canReply =
+                    !isSubmitting && session.status != 'questioning';
+                final bool showForceFinalize =
+                    session.status == 'awaiting_user_input';
+                return Column(
+                  children: <Widget>[
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.all(16),
                         children: <Widget>[
-                          const LinearProgressIndicator(),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton(
-                              onPressed: isSubmitting
-                                  ? null
-                                  : _resumeQuestioning,
-                              child: const Text('继续请求 AI'),
-                            ),
+                          ...messages.map(
+                            (IntakeMessage message) =>
+                                _MessageBubble(message: message),
                           ),
-                        ],
-                      ),
-                    )
-                  else
-                    SafeArea(
-                      top: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                        child: Column(
-                          children: <Widget>[
-                            TextField(
-                              controller: _replyController,
-                              enabled: canReply,
-                              minLines: 3,
-                              maxLines: 6,
-                              decoration: const InputDecoration(
-                                labelText: '补充信息',
-                                hintText: '继续描述新的症状细节或补充背景。',
-                                border: OutlineInputBorder(),
+                          const SizedBox(height: 8),
+                          if (session.status != 'awaiting_user_input')
+                            _StatusCard(session: session),
+                          if (actionState.hasError) ...<Widget>[
+                            const SizedBox(height: 12),
+                            Text(
+                              _buildErrorMessage(actionState.error),
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
                               ),
                             ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (session.status == 'questioning')
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: Column(
+                          children: <Widget>[
+                            const LinearProgressIndicator(),
                             const SizedBox(height: 12),
-                            Row(
-                              children: <Widget>[
-                                if (showForceFinalize)
-                                  Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: isSubmitting
-                                          ? null
-                                          : _forceFinalize,
-                                      child: const Text('直接生成记录'),
-                                    ),
-                                  ),
-                                if (showForceFinalize)
-                                  const SizedBox(width: 12),
-                                Expanded(
-                                  child: FilledButton(
-                                    onPressed: canReply ? _submitReply : null,
-                                    child: Text(
-                                      isSubmitting ? '提交中…' : '发送回答',
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton(
+                                onPressed: isSubmitting
+                                    ? null
+                                    : _resumeQuestioning,
+                                child: const Text('继续请求 AI'),
+                              ),
                             ),
                           ],
                         ),
+                      )
+                    else
+                      SafeArea(
+                        top: false,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                          child: Column(
+                            children: <Widget>[
+                              TextField(
+                                controller: _replyController,
+                                enabled: canReply,
+                                minLines: 3,
+                                maxLines: 6,
+                                decoration: const InputDecoration(
+                                  labelText: '补充信息',
+                                  hintText: '继续描述新的症状细节或补充背景。',
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: <Widget>[
+                                  if (showForceFinalize)
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        onPressed: isSubmitting
+                                            ? null
+                                            : _forceFinalize,
+                                        child: const Text('直接生成记录'),
+                                      ),
+                                    ),
+                                  if (showForceFinalize)
+                                    const SizedBox(width: 12),
+                                  Expanded(
+                                    child: FilledButton(
+                                      onPressed: canReply ? _submitReply : null,
+                                      child: Text(
+                                        isSubmitting ? '提交中…' : '发送回答',
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                ],
-              );
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, _) =>
-                const _IntakeInfoState(title: '消息加载失败', message: '请稍后重试。'),
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) =>
-            const _IntakeInfoState(title: '追问会话加载失败', message: '请稍后重试。'),
+                  ],
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (_, _) =>
+                  const _IntakeInfoState(title: '消息加载失败', message: '请稍后重试。'),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (_, _) =>
+              const _IntakeInfoState(title: '追问会话加载失败', message: '请稍后重试。'),
+        ),
       ),
     );
   }
@@ -300,7 +320,7 @@ class _IntakePageState extends ConsumerState<IntakePage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('草稿记录已删除。')));
-      context.go('/records');
+      _handleBackNavigation();
     } catch (_) {
       if (!context.mounted) {
         return;

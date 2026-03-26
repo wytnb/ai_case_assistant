@@ -1,3 +1,4 @@
+import 'package:ai_case_assistant/app/router/records_navigation.dart';
 import 'package:ai_case_assistant/app/presentation/pages/home_page.dart';
 import 'package:ai_case_assistant/features/health_record/presentation/pages/create_health_record_page.dart';
 import 'package:ai_case_assistant/features/health_record/presentation/pages/health_record_detail_page.dart';
@@ -12,7 +13,11 @@ final GoRouter appRouter = GoRouter(
     GoRoute(path: '/', builder: (context, state) => const HomePage()),
     GoRoute(
       path: '/records',
-      builder: (context, state) => const HealthRecordListPage(),
+      builder: (context, state) => HealthRecordListPage(
+        initialTab: HealthRecordListTab.fromQueryValue(
+          state.uri.queryParameters['tab'],
+        ),
+      ),
     ),
     GoRoute(
       path: '/records/new',

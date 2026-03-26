@@ -1,3 +1,4 @@
+import 'package:ai_case_assistant/app/router/records_navigation.dart';
 import 'package:ai_case_assistant/core/database/app_database.dart';
 import 'package:ai_case_assistant/features/health_record/presentation/providers/health_record_providers.dart';
 import 'package:ai_case_assistant/features/intake/presentation/providers/intake_providers.dart';
@@ -7,7 +8,12 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 class HealthRecordListPage extends ConsumerStatefulWidget {
-  const HealthRecordListPage({super.key});
+  const HealthRecordListPage({
+    super.key,
+    this.initialTab = HealthRecordListTab.records,
+  });
+
+  final HealthRecordListTab initialTab;
 
   static final DateFormat _dateFormatter = DateFormat('yyyy-MM-dd HH:mm');
   static final DateFormat _dayFormatter = DateFormat('yyyy-MM-dd');
@@ -26,6 +32,15 @@ class HealthRecordListPage extends ConsumerStatefulWidget {
 }
 
 class _HealthRecordListPageState extends ConsumerState<HealthRecordListPage> {
+  void _handleBackNavigation() {
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+
+    context.go('/');
+  }
+
   void _openCreatePage() {
     context.push('/records/new');
   }
@@ -163,56 +178,71 @@ class _HealthRecordListPageState extends ConsumerState<HealthRecordListPage> {
       deleteDraftSessionControllerProvider,
     );
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(title: const Text('健康记录列表')),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: _openCreatePage,
-          icon: const Icon(Icons.add),
-          label: const Text('新增记录'),
-        ),
-        body: switch ((healthRecordsAsync, unfinishedSessionsAsync)) {
-          (
-            AsyncData<List<HealthEvent>> recordsData,
-            AsyncData<List<IntakeSession>> draftsData,
-          ) =>
-            _LoadedListBody(
-              healthRecords: recordsData.value,
-              unfinishedSessions: draftsData.value,
-              dateRange: dateRange,
-              onCreatePressed: _openCreatePage,
-              onPickDateRange: _pickDateRange,
-              onClearDateRange: () =>
-                  ref.read(recordEventTimeFilterProvider.notifier).state = null,
-              onDeleteHealthRecord: _deleteHealthRecord,
-              onDeleteDraftSession: _deleteDraftSession,
-              isDeleteActionEnabled:
-                  !deleteHealthRecordState.isLoading &&
-                  !deleteDraftSessionState.isLoading,
-            ),
-          (AsyncError<List<HealthEvent>> _, _) ||
-          (_, AsyncError<List<IntakeSession>> _) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  const Text('记录加载失败，请稍后重试。'),
-                  const SizedBox(height: 12),
-                  FilledButton(
-                    onPressed: () {
-                      ref.invalidate(healthRecordListProvider);
-                      ref.invalidate(unfinishedIntakeSessionsProvider);
-                    },
-                    child: const Text('重试'),
-                  ),
-                ],
+    return PopScope<void>(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, void result) {
+        if (didPop) {
+          return;
+        }
+        _handleBackNavigation();
+      },
+      child: DefaultTabController(
+        key: ValueKey<HealthRecordListTab>(widget.initialTab),
+        length: 2,
+        initialIndex: widget.initialTab.index,
+        child: Scaffold(
+          appBar: AppBar(
+            leading: BackButton(onPressed: _handleBackNavigation),
+            title: const Text('健康记录列表'),
+          ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: _openCreatePage,
+            icon: const Icon(Icons.add),
+            label: const Text('新增记录'),
+          ),
+          body: switch ((healthRecordsAsync, unfinishedSessionsAsync)) {
+            (
+              AsyncData<List<HealthEvent>> recordsData,
+              AsyncData<List<IntakeSession>> draftsData,
+            ) =>
+              _LoadedListBody(
+                healthRecords: recordsData.value,
+                unfinishedSessions: draftsData.value,
+                dateRange: dateRange,
+                onCreatePressed: _openCreatePage,
+                onPickDateRange: _pickDateRange,
+                onClearDateRange: () =>
+                    ref.read(recordEventTimeFilterProvider.notifier).state =
+                        null,
+                onDeleteHealthRecord: _deleteHealthRecord,
+                onDeleteDraftSession: _deleteDraftSession,
+                isDeleteActionEnabled:
+                    !deleteHealthRecordState.isLoading &&
+                    !deleteDraftSessionState.isLoading,
+              ),
+            (AsyncError<List<HealthEvent>> _, _) ||
+            (_, AsyncError<List<IntakeSession>> _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    const Text('记录加载失败，请稍后重试。'),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: () {
+                        ref.invalidate(healthRecordListProvider);
+                        ref.invalidate(unfinishedIntakeSessionsProvider);
+                      },
+                      child: const Text('重试'),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          _ => const Center(child: CircularProgressIndicator()),
-        },
+            _ => const Center(child: CircularProgressIndicator()),
+          },
+        ),
       ),
     );
   }

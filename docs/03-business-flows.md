@@ -34,7 +34,9 @@
 6. worker 返回 `status=final`。
 7. 客户端将 `draft.mergedRawText`、`draft.symptomSummary`、`draft.notes`、`draft.actionAdvice` 写入正式 `health_events`。
 8. 客户端把会话暂存附件转正为 `attachments`，并回填 `intake_sessions.healthEventId`。
-9. 页面跳转到记录详情页或列表页。
+9. 页面跳转到正式记录详情页 `/records/:id`。
+10. 若该详情页当前没有可回退的路由栈，点击返回时跳转到 `/records?tab=records`。
+11. 若 `/records` 当前没有可回退的路由栈，点击返回时跳转到首页 `/`。
 
 ### 流程 3：追问模式开启时新增记录
 
@@ -47,6 +49,7 @@
    - 更新 `mergedRawText`、`draftSymptomSummary`、`draftNotes`、`draftActionAdvice`
    - 会话状态更新为 `awaiting_user_input`
    - 跳转 `/intake/:id`
+   - 若该追问页当前没有可回退的路由栈，点击返回时跳转到 `/records?tab=drafts`
 6. 如果 worker 返回 `status=final`：
    - 直接生成正式记录
    - 保存 `actionAdvice`
@@ -95,6 +98,9 @@
 4. “草稿记录” tab 展示 `questioning` 或 `awaiting_user_input` 会话，按 `updatedAt` 倒序。
 5. “正式记录” tab 展示正式 `health_events`，按 `createdAt` 倒序。
 6. 草稿 tab 在筛选结果数量大于 0 时显示数字标识。
+7. 用户从正式记录详情页返回时，优先回到已有列表；若当前详情页是根路由，则回到 `/records?tab=records`。
+8. 用户从草稿追问页返回时，优先回到已有列表；若当前追问页是根路由，则回到 `/records?tab=drafts`。
+9. 用户在 `/records` 返回时，优先回到已有上一页；若当前列表页是根路由，则回到首页 `/`。
 
 ### 流程 9：生成并查看健康报告
 

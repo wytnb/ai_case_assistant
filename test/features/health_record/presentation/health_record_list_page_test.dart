@@ -366,6 +366,41 @@ void main() {
       expect(find.text('还没有健康记录'), findsOneWidget);
     },
   );
+  testWidgets('back on root records page falls back to home', (
+    WidgetTester tester,
+  ) async {
+    final AppDatabase database = AppDatabase(NativeDatabase.memory());
+    addTearDown(database.close);
+
+    final GoRouter router = GoRouter(
+      initialLocation: '/records',
+      routes: <RouteBase>[
+        GoRoute(
+          path: '/',
+          builder: (_, _) => const Scaffold(body: Center(child: Text('home'))),
+        ),
+        GoRoute(
+          path: '/records',
+          builder: (_, _) => const HealthRecordListPage(),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[appDatabaseProvider.overrideWithValue(database)],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    expect(router.routerDelegate.currentConfiguration.uri.toString(), '/');
+    expect(find.text('home'), findsOneWidget);
+  });
 }
 
 class _DelayedDeleteIntakeService extends IntakeService {

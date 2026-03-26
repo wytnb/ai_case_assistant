@@ -1,13 +1,15 @@
 import 'dart:io';
 
+import 'package:ai_case_assistant/app/router/records_navigation.dart';
 import 'package:ai_case_assistant/core/database/app_database.dart';
 import 'package:ai_case_assistant/core/database/app_database_provider.dart';
 import 'package:ai_case_assistant/features/health_record/data/local/health_record_attachment_storage.dart';
+import 'package:ai_case_assistant/features/health_record/presentation/pages/health_record_list_page.dart';
 import 'package:ai_case_assistant/features/intake/data/local/intake_attachment_storage.dart';
 import 'package:ai_case_assistant/features/intake/domain/services/ai_intake_service.dart';
 import 'package:ai_case_assistant/features/intake/presentation/pages/intake_page.dart';
 import 'package:ai_case_assistant/features/intake/presentation/providers/intake_providers.dart';
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -173,6 +175,53 @@ void main() {
       'awaiting_user_input',
     );
   });
+  testWidgets('back on root intake page falls back to drafts tab', (
+    WidgetTester tester,
+  ) async {
+    final AppDatabase database = AppDatabase(NativeDatabase.memory());
+    addTearDown(database.close);
+    await _seedAwaitingSession(database);
+
+    final GoRouter router = await _pumpIntakeFlowApp(
+      tester,
+      database: database,
+      intakeService: _NoopAiIntakeService(),
+    );
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    expect(
+      router.routerDelegate.currentConfiguration.uri.toString(),
+      '/records?tab=drafts',
+    );
+    expect(find.text('merged text'), findsOneWidget);
+  });
+
+  testWidgets('deleting on root intake page returns to drafts tab', (
+    WidgetTester tester,
+  ) async {
+    final AppDatabase database = AppDatabase(NativeDatabase.memory());
+    addTearDown(database.close);
+    await _seedAwaitingSession(database);
+
+    final GoRouter router = await _pumpIntakeFlowApp(
+      tester,
+      database: database,
+      intakeService: _NoopAiIntakeService(),
+    );
+
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('确认删除'));
+    await tester.pumpAndSettle();
+
+    expect(await database.getIntakeSessionById('session-1'), isNull);
+    expect(
+      router.routerDelegate.currentConfiguration.uri.toString(),
+      '/records?tab=drafts',
+    );
+  });
 }
 
 Future<void> _seedAwaitingSession(AppDatabase database) async {
@@ -256,6 +305,61 @@ Future<void> _pumpIntakePage(
   await tester.pumpAndSettle();
 }
 
+Future<GoRouter> _pumpIntakeFlowApp(
+  WidgetTester tester, {
+  required AppDatabase database,
+  required AiIntakeService intakeService,
+}) async {
+  final TestIntakeAttachmentStorage intakeAttachmentStorage =
+      TestIntakeAttachmentStorage();
+  final TestHealthRecordAttachmentStorage healthRecordAttachmentStorage =
+      TestHealthRecordAttachmentStorage();
+  addTearDown(intakeAttachmentStorage.dispose);
+  addTearDown(healthRecordAttachmentStorage.dispose);
+  final GoRouter router = GoRouter(
+    initialLocation: '/intake/session-1',
+    routes: <RouteBase>[
+      GoRoute(
+        path: '/records',
+        builder: (_, GoRouterState state) => HealthRecordListPage(
+          initialTab: HealthRecordListTab.fromQueryValue(
+            state.uri.queryParameters['tab'],
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/intake/:id',
+        builder: (_, GoRouterState state) =>
+            IntakePage(sessionId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/records/:id',
+        builder: (_, _) => const Scaffold(body: Center(child: Text('detail'))),
+      ),
+    ],
+  );
+  addTearDown(router.dispose);
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: <Override>[
+        appDatabaseProvider.overrideWithValue(database),
+        intakeServiceProvider.overrideWithValue(
+          IntakeService(
+            database: database,
+            aiIntakeService: intakeService,
+            intakeAttachmentStorage: intakeAttachmentStorage,
+            healthRecordAttachmentStorage: healthRecordAttachmentStorage,
+          ),
+        ),
+      ],
+      child: MaterialApp.router(routerConfig: router),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return router;
+}
+
 class FakeAiIntakeService implements AiIntakeService {
   final List<IntakeResponse> _responses = <IntakeResponse>[];
 
@@ -271,6 +375,18 @@ class FakeAiIntakeService implements AiIntakeService {
     required List<IntakeRequestMessage> messages,
   }) async {
     return _responses.removeAt(0);
+  }
+}
+
+class _NoopAiIntakeService implements AiIntakeService {
+  @override
+  Future<IntakeResponse> submitIntake({
+    required bool followUpMode,
+    required bool forceFinalize,
+    required DateTime eventTime,
+    required List<IntakeRequestMessage> messages,
+  }) {
+    throw UnimplementedError();
   }
 }
 

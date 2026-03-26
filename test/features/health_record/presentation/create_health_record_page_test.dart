@@ -2,11 +2,15 @@ import 'dart:io';
 
 import 'package:ai_case_assistant/core/database/app_database.dart';
 import 'package:ai_case_assistant/core/database/app_database_provider.dart';
+import 'package:ai_case_assistant/app/router/records_navigation.dart';
 import 'package:ai_case_assistant/features/health_record/data/local/health_record_attachment_storage.dart';
 import 'package:ai_case_assistant/features/health_record/presentation/pages/create_health_record_page.dart';
+import 'package:ai_case_assistant/features/health_record/presentation/pages/health_record_detail_page.dart';
+import 'package:ai_case_assistant/features/health_record/presentation/pages/health_record_list_page.dart';
 import 'package:ai_case_assistant/features/intake/data/local/intake_attachment_storage.dart';
 import 'package:ai_case_assistant/features/intake/domain/exceptions/ai_intake_exception.dart';
 import 'package:ai_case_assistant/features/intake/domain/services/ai_intake_service.dart';
+import 'package:ai_case_assistant/features/intake/presentation/pages/intake_page.dart';
 import 'package:ai_case_assistant/features/intake/presentation/providers/intake_providers.dart';
 import 'package:ai_case_assistant/features/settings/data/settings_repository.dart';
 import 'package:ai_case_assistant/features/settings/presentation/providers/settings_providers.dart';
@@ -116,6 +120,130 @@ void main() {
     expect(records, isEmpty);
     expect(find.text('intake'), findsOneWidget);
   });
+
+  testWidgets(
+    'direct-final detail back falls back to records list records tab',
+    (WidgetTester tester) async {
+      final AppDatabase database = AppDatabase(NativeDatabase.memory());
+      addTearDown(database.close);
+      final SettingsRepository settingsRepository = SettingsRepository(
+        database: database,
+      );
+      await settingsRepository.setFollowUpModeEnabled(false);
+      final FakeAiIntakeService aiIntakeService = FakeAiIntakeService()
+        ..enqueue(
+          const IntakeResponse(
+            status: IntakeResponseStatus.finalResult,
+            question: null,
+            draft: IntakeDraft(
+              mergedRawText: 'merged final record',
+              symptomSummary: 'summary',
+              notes: '',
+              actionAdvice: 'rest',
+            ),
+          ),
+        );
+      final TestIntakeAttachmentStorage intakeStorage =
+          TestIntakeAttachmentStorage();
+      final TestHealthRecordAttachmentStorage healthStorage =
+          TestHealthRecordAttachmentStorage();
+      addTearDown(intakeStorage.dispose);
+      addTearDown(healthStorage.dispose);
+      final IntakeService service = IntakeService(
+        database: database,
+        aiIntakeService: aiIntakeService,
+        intakeAttachmentStorage: intakeStorage,
+        healthRecordAttachmentStorage: healthStorage,
+      );
+
+      final GoRouter router = await _pumpCreateFlowApp(
+        tester,
+        database: database,
+        settingsRepository: settingsRepository,
+        intakeService: service,
+      );
+
+      await tester.enterText(find.byType(TextFormField), 'raw final text');
+      await tester.tap(find.byType(FilledButton));
+      await tester.pumpAndSettle();
+
+      expect(
+        router.routerDelegate.currentConfiguration.uri.path,
+        startsWith('/records/'),
+      );
+
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+
+      expect(
+        router.routerDelegate.currentConfiguration.uri.toString(),
+        '/records?tab=records',
+      );
+      expect(find.text('merged final record'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'needs-followup page back falls back to records list drafts tab',
+    (WidgetTester tester) async {
+      final AppDatabase database = AppDatabase(NativeDatabase.memory());
+      addTearDown(database.close);
+      final SettingsRepository settingsRepository = SettingsRepository(
+        database: database,
+      );
+      await settingsRepository.setFollowUpModeEnabled(true);
+      final FakeAiIntakeService aiIntakeService = FakeAiIntakeService()
+        ..enqueue(
+          const IntakeResponse(
+            status: IntakeResponseStatus.needsFollowup,
+            question: 'Do you have a fever?',
+            draft: IntakeDraft(
+              mergedRawText: 'draft merged text',
+              symptomSummary: 'draft summary',
+              notes: '',
+              actionAdvice: '',
+            ),
+          ),
+        );
+      final TestIntakeAttachmentStorage intakeStorage =
+          TestIntakeAttachmentStorage();
+      final TestHealthRecordAttachmentStorage healthStorage =
+          TestHealthRecordAttachmentStorage();
+      addTearDown(intakeStorage.dispose);
+      addTearDown(healthStorage.dispose);
+      final IntakeService service = IntakeService(
+        database: database,
+        aiIntakeService: aiIntakeService,
+        intakeAttachmentStorage: intakeStorage,
+        healthRecordAttachmentStorage: healthStorage,
+      );
+
+      final GoRouter router = await _pumpCreateFlowApp(
+        tester,
+        database: database,
+        settingsRepository: settingsRepository,
+        intakeService: service,
+      );
+
+      await tester.enterText(find.byType(TextFormField), 'draft raw text');
+      await tester.tap(find.byType(FilledButton));
+      await tester.pumpAndSettle();
+
+      expect(
+        router.routerDelegate.currentConfiguration.uri.path,
+        startsWith('/intake/'),
+      );
+
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+
+      expect(
+        router.routerDelegate.currentConfiguration.uri.toString(),
+        '/records?tab=drafts',
+      );
+      expect(find.text('draft merged text'), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'shows validation error and does not submit when rawText is 1001 characters',
@@ -238,6 +366,59 @@ Future<void> _pumpCreatePage(
     ),
   );
   await tester.pumpAndSettle();
+}
+
+Future<GoRouter> _pumpCreateFlowApp(
+  WidgetTester tester, {
+  required AppDatabase database,
+  required SettingsRepository settingsRepository,
+  required IntakeService intakeService,
+}) async {
+  final GoRouter router = GoRouter(
+    initialLocation: '/records/new',
+    routes: <RouteBase>[
+      GoRoute(
+        path: '/',
+        builder: (_, _) => const Scaffold(body: Center(child: Text('home'))),
+      ),
+      GoRoute(
+        path: '/records',
+        builder: (_, GoRouterState state) => HealthRecordListPage(
+          initialTab: HealthRecordListTab.fromQueryValue(
+            state.uri.queryParameters['tab'],
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/records/new',
+        builder: (_, _) => const CreateHealthRecordPage(),
+      ),
+      GoRoute(
+        path: '/records/:id',
+        builder: (_, GoRouterState state) =>
+            HealthRecordDetailPage(healthRecordId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/intake/:id',
+        builder: (_, GoRouterState state) =>
+            IntakePage(sessionId: state.pathParameters['id']!),
+      ),
+    ],
+  );
+  addTearDown(router.dispose);
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: <Override>[
+        appDatabaseProvider.overrideWithValue(database),
+        settingsRepositoryProvider.overrideWithValue(settingsRepository),
+        intakeServiceProvider.overrideWithValue(intakeService),
+      ],
+      child: MaterialApp.router(routerConfig: router),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return router;
 }
 
 class FakeAiIntakeService implements AiIntakeService {

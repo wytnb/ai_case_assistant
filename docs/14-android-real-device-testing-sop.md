@@ -134,6 +134,7 @@ if ($installExitCode -ne 0) {
 - `-t` 允许安装测试包。
 - `-g` 在安装时授予运行时权限，避免把手机端确认页当成部署步骤的一部分。
 - 安装成功后应立即自动启动 `com.example.ai_case_assistant/.MainActivity`。
+- 真机 smoke 或安装验证结束后，默认保留手机中已安装的 App，不把卸载作为标准收尾步骤。
 - 安装失败时必须原样输出完整 ADB 错误信息，不要只保留摘要。
 
 ### 可选清理重装
@@ -145,6 +146,11 @@ adb uninstall com.example.ai_case_assistant
 adb install -r -t -g build/app/outputs/flutter-apk/app-debug.apk
 adb shell am start -n com.example.ai_case_assistant/.MainActivity
 ```
+
+说明：
+
+- `adb uninstall com.example.ai_case_assistant` 仅用于排障、清理重装或明确需要验证冷安装时。
+- 它不是每次真机测试后的默认收尾动作。
 
 ## 仓库专属真机 smoke 流程
 
@@ -213,6 +219,7 @@ adb shell pm list packages com.example.ai_case_assistant
 - 使用了哪些命令。
 - 跑了哪些手工步骤。
 - 是否依赖真实 AI、是否保留代理。
+- 是否保留了手机中已安装的 App；若执行了卸载，说明原因。
 - 仍未覆盖的验证项与原因。
 
 ## 相关文档

@@ -30,8 +30,11 @@
 - [ ] `/records` 可以打开
 - [ ] `/records` 的“正式记录 / 草稿记录”双 tab 可以切换
 - [ ] `/records` 日期范围筛选可用，清空筛选后列表恢复
+- [ ] `/records` 作为根路由时，返回会进入首页 `/`
 - [ ] `/records/:id` 可以打开
 - [ ] `/records/:id` 可执行删除正式记录并返回列表
+- [ ] `/records/:id` 作为根路由时，返回会进入 `/records?tab=records`
+- [ ] `/intake/:id` 作为根路由时，返回会进入 `/records?tab=drafts`
 - [ ] `/reports` 可以打开
 - [ ] `/reports/:id` 可以打开
 - [ ] 若报告覆盖的来源记录在报告生成后被删除，`/reports/:id` 会显示“部分记录来源已被删除”
@@ -74,6 +77,7 @@
 - 真机 smoke 是发布候选和最终验收的默认要求。
 - 不要把“关闭代理”写成默认排障步骤。
 - Android 包部署默认走主机侧 ADB 直装，不再采用手机下载 APK 后手动安装。
+- 真机 smoke 结束后默认保留手机上已安装的 App，不把卸载当成标准收尾动作。
 
 ## Web Chrome 备用 smoke
 

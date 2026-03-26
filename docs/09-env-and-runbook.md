@@ -74,6 +74,7 @@ adb shell am start -n com.example.ai_case_assistant/.MainActivity
 - Android 包部署默认使用主机侧 ADB 直装，不再通过手机下载 APK 后手动安装。
 - 安装前先确认 `adb devices` 中只有一台目标真机，且状态为 `device`。
 - 安装成功后应自动启动应用；若安装失败，必须保留并汇报完整 ADB 输出。
+- 真机 smoke 结束后默认保留手机上已安装的 App；`adb uninstall` 只在排障或明确需要清理重装时使用。
 - 不要依赖手机上的“继续安装”页面；详细 PowerShell 流程见 [docs/14-android-real-device-testing-sop.md](docs/14-android-real-device-testing-sop.md)。
 
 ## 验证分层入口
@@ -137,6 +138,7 @@ Android 真机的连接、安装、运行、日志与排障统一见 [docs/14-an
 
 - 真机范围包括相册、附件、本地文件、安装和代理网络。
 - 若真实 AI 依赖 Clash 等代理访问上游，保留代理，不把“关闭代理”当成默认排障动作。
+- 真机 smoke 默认不要求在结束后卸载 App，避免把“卸载收尾”误当成标准步骤。
 
 ### Web Chrome 备用 smoke
 

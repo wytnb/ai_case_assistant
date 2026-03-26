@@ -1,11 +1,14 @@
+import 'package:ai_case_assistant/app/router/records_navigation.dart';
 import 'package:ai_case_assistant/core/database/app_database.dart';
 import 'package:ai_case_assistant/core/database/app_database_provider.dart';
 import 'package:ai_case_assistant/features/health_record/presentation/pages/health_record_detail_page.dart';
-import 'package:drift/drift.dart';
+import 'package:ai_case_assistant/features/health_record/presentation/pages/health_record_list_page.dart';
+import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 void main() {
   testWidgets(
@@ -100,5 +103,120 @@ void main() {
     expect(find.text('暂无 AI 摘要'), findsOneWidget);
     expect(find.text('暂无备注'), findsOneWidget);
     expect(find.text('暂无建议'), findsOneWidget);
+  });
+  testWidgets('back on root detail page falls back to records tab', (
+    WidgetTester tester,
+  ) async {
+    final AppDatabase database = AppDatabase(NativeDatabase.memory());
+    addTearDown(database.close);
+    await database.insertHealthEvent(
+      HealthEventsCompanion.insert(
+        id: 'record-back',
+        sourceType: 'text',
+        rawText: const Value<String?>('record back raw text'),
+        symptomSummary: const Value<String?>('summary'),
+        notes: const Value<String?>('notes'),
+        actionAdvice: const Value<String?>('advice'),
+        createdAt: DateTime.parse('2026-03-15T10:00:00.000'),
+        updatedAt: DateTime.parse('2026-03-15T10:00:00.000'),
+      ),
+    );
+
+    final GoRouter router = GoRouter(
+      initialLocation: '/records/record-back',
+      routes: <RouteBase>[
+        GoRoute(
+          path: '/records',
+          builder: (_, GoRouterState state) => HealthRecordListPage(
+            initialTab: HealthRecordListTab.fromQueryValue(
+              state.uri.queryParameters['tab'],
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/records/:id',
+          builder: (_, GoRouterState state) => HealthRecordDetailPage(
+            healthRecordId: state.pathParameters['id']!,
+          ),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[appDatabaseProvider.overrideWithValue(database)],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    expect(
+      router.routerDelegate.currentConfiguration.uri.toString(),
+      '/records?tab=records',
+    );
+    expect(find.text('record back raw text'), findsOneWidget);
+  });
+
+  testWidgets('deleting on root detail page returns to records tab', (
+    WidgetTester tester,
+  ) async {
+    final AppDatabase database = AppDatabase(NativeDatabase.memory());
+    addTearDown(database.close);
+    await database.insertHealthEvent(
+      HealthEventsCompanion.insert(
+        id: 'record-delete',
+        sourceType: 'text',
+        rawText: const Value<String?>('record delete raw text'),
+        symptomSummary: const Value<String?>('summary'),
+        notes: const Value<String?>('notes'),
+        actionAdvice: const Value<String?>('advice'),
+        createdAt: DateTime.parse('2026-03-15T10:00:00.000'),
+        updatedAt: DateTime.parse('2026-03-15T10:00:00.000'),
+      ),
+    );
+
+    final GoRouter router = GoRouter(
+      initialLocation: '/records/record-delete',
+      routes: <RouteBase>[
+        GoRoute(
+          path: '/records',
+          builder: (_, GoRouterState state) => HealthRecordListPage(
+            initialTab: HealthRecordListTab.fromQueryValue(
+              state.uri.queryParameters['tab'],
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/records/:id',
+          builder: (_, GoRouterState state) => HealthRecordDetailPage(
+            healthRecordId: state.pathParameters['id']!,
+          ),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[appDatabaseProvider.overrideWithValue(database)],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('确认删除'));
+    await tester.pumpAndSettle();
+
+    expect(await database.getHealthEventById('record-delete'), isNull);
+    expect(
+      router.routerDelegate.currentConfiguration.uri.toString(),
+      '/records?tab=records',
+    );
   });
 }

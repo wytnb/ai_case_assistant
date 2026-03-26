@@ -6,6 +6,42 @@
 
 ## 变更记录
 
+### 2026-03-26 - 记录返回链路与真机测试默认保留已安装 App
+
+- 原需求：
+  - 新增记录后进入正式记录详情或草稿追问页时，返回目标未被统一约束
+  - `/records` 作为根路由时，返回行为未明确要求回首页
+  - 真机测试文档只保留“可选清理重装”，但没有明确“测试结束后默认不卸载 App”的口径
+- 新需求：
+  - 新增记录后进入正式记录详情页时，返回应落到 `/records?tab=records`
+  - 新增记录后进入草稿追问页时，返回应落到 `/records?tab=drafts`
+  - `/records` 作为根路由时，返回应回首页 `/`
+  - 若页面本身已有可回退的上层路由，仍优先 `pop` 回现有上一页，不强行改写已有列表栈
+  - 真机 smoke 结束后默认保留手机中已安装的 App
+  - `adb uninstall com.example.ai_case_assistant` 只保留为排障、清理重装或明确需要验证冷安装时的操作
+- 变更原因：
+  - 统一正式记录、草稿追问与记录列表之间的返回链路，避免新增流程把用户留在无明确上一层的页面
+  - 降低真机测试后的重复安装成本，避免把“卸载收尾”误当成标准流程
+- 影响范围：
+  - `docs/03-business-flows.md`
+  - `docs/09-env-and-runbook.md`
+  - `docs/11-regression-matrix.md`
+  - `docs/12-release-smoke-checklist.md`
+  - `docs/14-android-real-device-testing-sop.md`
+  - `lib/app/router/`
+  - `lib/features/health_record/`
+  - `lib/features/intake/`
+  - 相关 widget 测试
+- 需要补的测试：
+  - 新增记录 direct-final 后从详情返回到 `/records?tab=records`
+  - 新增记录 needs-followup 后从追问页返回到 `/records?tab=drafts`
+  - `/records` 根路由返回到首页
+  - `/records/:id` 与 `/intake/:id` 根路由的返回兜底
+  - 详情页 / 追问页删除成功后的返回目标
+- 风险：
+  - 路由回退行为依赖 `context.canPop()` 判断，后续若调整路由组织方式，需要同步回归这些返回链路
+  - 真机测试默认保留已安装 App，若测试人需要验证冷安装或清理本地状态，仍需显式执行卸载
+
 ### 2026-03-26 - Android 包部署收口为 ADB 直装
 
 - 原需求：
