@@ -120,4 +120,3 @@ npm test
 - [docs/15-monorepo-workspace.md](./docs/15-monorepo-workspace.md)：workspace 结构、职责、协作顺序
 - [docs/06-api-contracts.md](./docs/06-api-contracts.md)：根级契约解释
 - [services/ai_gateway/docs/06-api-contracts.md](./services/ai_gateway/docs/06-api-contracts.md)：gateway 实现说明
-- [apps/ai_case_assistant/AI健康助手.apk](./apps/ai_case_assistant/AI健康助手.apk)：当前仓库中的 Android APK 产物
