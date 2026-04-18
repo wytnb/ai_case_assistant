@@ -1,4 +1,12 @@
 # AI 健康病例助手 Monorepo
+
+## APK 包位置指引
+
+- 当前根目录交付文件：`ai_case_assistant-release.apk`
+- 当前工作区中的绝对路径：`C:\files\AI\ai_case_assistant\ai_case_assistant-release.apk`
+- Flutter 原始构建输出仍位于：`apps/ai_case_assistant/build/app/outputs/flutter-apk/app-release.apk`
+- 如需重新打包：进入 `apps/ai_case_assistant/` 后执行 `fvm flutter build apk --release`，再将产物同步到仓库根目录
+
 ## 背景
 AI 健康病例助手是一个面向个人健康记录整理场景的 Flutter 客户端项目。 当前仓库的核心目标不是做成完整医疗平台，而是交付一个可真实演示、可保存本地数据、可接入 AI 整理与报告生成的 MVP。
 

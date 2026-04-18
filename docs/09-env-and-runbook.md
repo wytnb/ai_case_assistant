@@ -67,7 +67,16 @@ python scripts/verify/check_ai_contract_sync.py
 cd apps/ai_case_assistant
 fvm flutter analyze
 fvm flutter test
+fvm flutter build apk --release
 ```
+
+release APK 默认输出到：
+
+- `apps/ai_case_assistant/build/app/outputs/flutter-apk/app-release.apk`
+
+若需要把安装包作为仓库根目录交付物保留，再同步一份到：
+
+- `ai_case_assistant-release.apk`
 
 真实 AI 自动化：
 
@@ -136,8 +145,9 @@ npm test
 2. 根目录执行 `python scripts/verify/check_ai_contract_sync.py`
 3. `cd apps/ai_case_assistant && fvm flutter analyze`
 4. `cd apps/ai_case_assistant && fvm flutter test`
-5. 若改动涉及 app AI 主链路，评估真实 AI 自动化
-6. 若改动涉及 gateway 运行时代码或部署配置，按服务侧闭环追加 `npm test`、`npm run test:live`、`npm run deploy` 与 smoke
+5. 若需要交付 Android 安装包，执行 `cd apps/ai_case_assistant && fvm flutter build apk --release`
+6. 若改动涉及 app AI 主链路，评估真实 AI 自动化
+7. 若改动涉及 gateway 运行时代码或部署配置，按服务侧闭环追加 `npm test`、`npm run test:live`、`npm run deploy` 与 smoke
 
 ## 当前平台与标识事实
 

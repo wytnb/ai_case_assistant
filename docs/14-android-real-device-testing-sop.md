@@ -64,13 +64,18 @@ fvm flutter run -d <device-id> --dart-define=AI_API_BASE_URL=https://case-assist
 
 ```bash
 cd apps/ai_case_assistant
-fvm flutter build apk --debug
+fvm flutter build apk --release
 ```
+
+产物路径：
+
+- `apps/ai_case_assistant/build/app/outputs/flutter-apk/app-release.apk`
+- 如需仓库根目录交付包，可额外复制为 `ai_case_assistant-release.apk`
 
 再用 ADB 安装：
 
 ```bash
-adb install -r -t -g build/app/outputs/flutter-apk/app-debug.apk
+adb install -r -g build/app/outputs/flutter-apk/app-release.apk
 ```
 
 ## 仓库专属真机 smoke 流程
